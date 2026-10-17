@@ -5507,6 +5507,14 @@ function ConsolePanel({ state, setState, audio, channelRefs, masterLRef, masterR
   // Guided content (walkthrough/lesson) is authored against the analog strip
   // and its spotlight anchors, so those force analog and hide the toggle
   // (surfaceLocked) — the App passes surface='analog' in that case too.
+  // The 16-channel board (state.big16) forces analog for a different reason:
+  // the big16 meter fast path skips the per-frame React render and pushes
+  // levels only to meters registered by mkey, and only the analog strip
+  // registers them (the digital meters would sit still). The digital surface
+  // also still assumes the small desk — a hardcoded DX-6 name, AUX 1/2 bus
+  // masters only, and a 5-entry inputPatch — so it is not wired for 16 inputs
+  // yet. Until that work is done, big16 stays analog; the forcing itself is in
+  // App(), on the <Chain> surface / canDigital / surfaceLocked props.
   const sfc = (surface === 'digital' && canDigital) ? 'digital' : 'analog';
   return (
     <div style={{
