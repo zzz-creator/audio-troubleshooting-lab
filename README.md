@@ -14,7 +14,7 @@ Two parallel pairs — a sandbox and production. `IS_STAGING` auto-detects which
 
 Served via GitHub Pages, embedded in an iframe on the Audio University Circle community. A commit to `main` auto-deploys within about a minute.
 
-One production build, three iframe embeds that differ only by URL query (all share the full-bleed wrapper with `allow="autoplay; fullscreen"`). Base URL: `https://audiouniversityonline-sketch.github.io/troubleshooting-lab/`
+One production build, three iframe embeds that differ only by URL query (all share the full-bleed wrapper with `allow="autoplay; fullscreen"`). Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab/`
 
 | Variant | Query | Placement | Behavior |
 |---|---|---|---|

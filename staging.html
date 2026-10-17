@@ -7838,9 +7838,60 @@ const SH_DONE_KEY = 'audiou-troubleshooting-lab-starthere-cta-v1';
 const JOIN_URL = 'https://audiouniversityonline.com/programs/live-sound/';
 const joinUrl = (content) => JOIN_URL + '?utm_source=troubleshooting-lab&utm_medium=app&utm_content=' + content;
 // Where the full members' version lives. A paying member who lands on the free
-// embed (a shared link, the free Circle page) uses this to jump to what they
-// already have, instead of hitting a join wall for content they own.
-const MEMBER_URL = 'https://community.audiouniversityonline.com/troubleshooting-lab';
+// embed (a shared link, the free page) uses this to jump to what they already
+// have, instead of hitting a join wall for content they own. ?tier=member is
+// what unlocks the member content in that build.
+//
+// The password is a SOFT gate, not security: it lives in this file, so anyone
+// reading source can see it. It guards BOTH the link (openFullVersion) and the
+// tier itself (see TIER below), so opening ?tier=member directly still asks.
+// The unlock is remembered in localStorage and shared across tabs on this
+// origin, so clicking the link does not re-prompt on the page it opens.
+const MEMBER_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab/?tier=member';
+const MEMBER_PASSWORD = 'C1rcl3M3mb3r';
+const MEMBER_UNLOCK_KEY = 'audiou-troubleshooting-lab-member-unlock-v1';
+
+function isMemberUnlocked() {
+  try { return window.localStorage.getItem(MEMBER_UNLOCK_KEY) === '1'; } catch (e) { return false; }
+}
+function unlockMember() {
+  try { window.localStorage.setItem(MEMBER_UNLOCK_KEY, '1'); } catch (e) {}
+}
+// Ask once. Returns 'ok' (right password, unlock remembered), 'wrong' (asked,
+// rejected) or 'cancel' (dismissed). Never throws.
+function requestMemberPassword() {
+  var pw = window.prompt('Members only. Enter the password to open the full version:');
+  if (pw === null) return 'cancel';
+  if (pw === MEMBER_PASSWORD) { unlockMember(); return 'ok'; }
+  return 'wrong';
+}
+// The free variant of the current URL: strip ?tier, keep the rest (so ?v=N
+// stays cold, ?optedin=1&v=N stays opted-in).
+function freeVariantUrl() {
+  var p = new URLSearchParams(window.location.search);
+  p.delete('tier');
+  var q = p.toString();
+  return window.location.pathname + (q ? '?' + q : '') + window.location.hash;
+}
+
+// Gate for the "Open the full version" link. Already-unlocked members go
+// straight through; otherwise prompt, and on a miss alert and bounce back to
+// the free variant. Carry this page's cache buster so the member build lands
+// as the documented ?tier=member&v=N embed.
+function openFullVersion(e) {
+  if (e) e.preventDefault();
+  if (!isMemberUnlocked()) {
+    var r = requestMemberPassword();
+    if (r === 'cancel') return;
+    if (r === 'wrong') {
+      window.alert('Incorrect password — taking you back to the free version.');
+      window.location.href = freeVariantUrl();
+      return;
+    }
+  }
+  var m = window.location.search.match(/[?&]v=(\d+)/);
+  window.open(MEMBER_URL + (m ? '&v=' + m[1] : ''), '_blank', 'noopener');
+}
 
 // ── Email gate (free tier) ──────────────────────────────────────────────
 // Before a free viewer starts the 10-lesson Essentials, ask for an email so it
@@ -8057,9 +8108,21 @@ function MobileNotice({ onCapture, optedIn }) {
 // work — and clicking it shows a short member pitch instead of the
 // scenario. A query parameter is obscurity, not security; accepted by
 // design (the paid value is the endless reps, coaching, and community).
+// The member tier is password-gated AT THE SOURCE, not just at the button:
+// landing directly on ?tier=member (typed, bookmarked, or a hand-edited embed)
+// asks for the password. A wrong or cancelled answer drops the param from the
+// address bar and loads the free tier. The paid value (endless reps, coaching,
+// community) still lives behind the Circle access group; this only stops a
+// casual visitor from flipping the tier by hand.
 const TIER = (() => {
   try {
-    return new URLSearchParams(window.location.search).get('tier') === 'member' ? 'member' : 'free';
+    if (new URLSearchParams(window.location.search).get('tier') !== 'member') return 'free';
+    if (isMemberUnlocked()) return 'member';
+    var r = requestMemberPassword();
+    if (r === 'ok') return 'member';
+    try { window.history.replaceState(null, '', freeVariantUrl()); } catch (e) {}
+    if (r === 'wrong') window.alert('Incorrect password — showing the free version.');
+    return 'free';
   } catch (e) { return 'free'; }
 })();
 
@@ -12691,7 +12754,7 @@ function App() {
                 borderRadius: 4, cursor: 'pointer',
               }}>BACK TO THE LESSONS</button>
             </div>
-            <a href={MEMBER_URL} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
+            <a href={MEMBER_URL} onClick={openFullVersion} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
               fontSize: 10.5, color: 'var(--ink-3)', textDecoration: 'underline', textUnderlineOffset: 3, marginTop: 2,
             }}>Already a member? Open the full version →</a>
           </div>
@@ -13047,7 +13110,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
           <button onClick={onClose} className="mono ui-no-select" style={{ ...navBtn, padding: '4px 10px' }}>✕</button>
         </div>
         {!isMember && (
-          <a href={MEMBER_URL} target="_blank" rel="noopener noreferrer" className="mono ui-no-select"
+          <a href={MEMBER_URL} onClick={openFullVersion} target="_blank" rel="noopener noreferrer" className="mono ui-no-select"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', borderBottom: '1px solid #2a2a2e', background: '#16161a', color: 'var(--accent)', textDecoration: 'none', fontSize: 11, fontWeight: 700, letterSpacing: 0.4 }}
             onMouseEnter={(e) => e.currentTarget.style.background = '#1d1d22'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#16161a'}>
