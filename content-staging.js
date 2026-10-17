@@ -389,7 +389,11 @@ window.LEVELS = [
     // input sits healthy; unity checks require unmuted + at unity; the PA
     // corridor (0.30-0.65 ~= 86-92 dB SPL, a sane small-club show level) is the
     // room level set with the speaker volume, shown as a green target band on
-    // the loudness meter. involves: [7] keeps the playback channel live, mutes the mics.
+    // the loudness meter. The corridor reads max(pa_l, pa_r), so the win's own
+    // PA-balance guard (normalWon's `balanced`) still rejects one-sided mains:
+    // both boxes come up together, and step 4 requires the pair too, so the
+    // guide can never read done while the win is blocked.
+    // involves: [7] keeps the playback channel live, mutes the mics.
     task: true,
     involves: [7],
     requirePflCheck: true,
@@ -401,12 +405,12 @@ window.LEVELS = [
       { source: 'playback', dest: 'pa', min: 0.30, max: 0.65 },
     ],
     defs: ['PFL', 'gain', 'unity'],
-    hint: 'Press PFL on the channel playback is connected to, and you will hear it in your headphones. Set the GAIN until the input meter sits in the healthy zone. Disengage PFL, switch MUTE off on that channel and on MAIN, and bring both faders to the U mark. Then raise the main speaker volume until the loudness meter reaches the green target band, which sits inside the amber section of that meter because a live show is louder than an all-day-safe listening level.',
+    hint: 'Press PFL on the channel playback is connected to, and you will hear it in your headphones. Set the GAIN until the input meter sits in the healthy zone. Disengage PFL, switch MUTE off on that channel and on MAIN, and bring both faders to the U mark. Then bring both main speakers up evenly until the loudness meter reaches the green target band, which sits inside the amber section of that meter because a live show is louder than an all-day-safe listening level.',
     hints: [
       { title: 'Listen in your headphones', target: 'ch7-pfl', text: 'Press PFL on the channel playback is connected to.', done: (ctx) => ctx.pflChecked || (ctx.state.channels[6] && ctx.state.channels[6].solo) },
       { title: 'Set the gain', target: ['ch7-gain', 'ch7-inputmeter'], text: 'Set the GAIN so the input meter sits in the healthy zone.', done: (ctx) => ctx.gainStatus && ctx.gainStatus.input },
       { title: 'Faders to unity', target: ['ch7-pfl', 'ch7-mute', 'ch7-fader', 'master-section', 'master-fader'], text: 'Disengage PFL, switch MUTE off on the playback channel and MAIN, then set both faders to unity.', done: (ctx) => ctx.gainStatus && ctx.gainStatus.fader && ctx.gainStatus.master },
-      { title: 'Turn up the speakers', target: ['out-pa-l', 'out-pa-r'], text: 'Raise the main speaker volume until the loudness meter reaches the green target band.', done: (ctx) => { var c = ctx.audio && ctx.audio.contributions && ctx.audio.contributions.playback; if (!c) return false; var l = Math.max(c.pa_l || 0, c.pa_r || 0); return l >= 0.30 && l <= 0.65; } },
+      { title: 'Turn up the speakers', target: ['out-pa-l', 'out-pa-r'], text: 'Bring both main speakers up evenly until the loudness meter reaches the green target band.', done: (ctx) => { var c = ctx.audio && ctx.audio.contributions && ctx.audio.contributions.playback; if (!c) return false; var l = Math.max(c.pa_l || 0, c.pa_r || 0); if (!(l >= 0.30 && l <= 0.65)) return false; return !ctx.paBalanceIssue; } },
     ],
     sabotage: (s) => {
       // Continuous with Power-On: rig on, console fully zeroed. Channel muted,

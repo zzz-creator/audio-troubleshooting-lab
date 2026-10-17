@@ -132,7 +132,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=107"></script>
+<script src="content.js?v=108"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -12552,7 +12552,7 @@ function App() {
   // win. (Same reason the BriefCard objectives use audioBaseline.)
   const hintCtx = {
     state, audio: audioBaseline, powerStatus, gainStatus, verifyStatus, pflEachStatus,
-    zeroStatus, patchStatus, feedback, audioOn, adjustBase: adjustBaseRef.current, adjustLatched: adjustLatchRef.current,
+    zeroStatus, patchStatus, feedback, paBalanceIssue, audioOn, adjustBase: adjustBaseRef.current, adjustLatched: adjustLatchRef.current,
     pflChannels: pflChannelsRef.current, pflChecked: pflCheckedRef.current,
     ioListOpen: ioListOpen || ioListOpenedRef.current, hasPopped: hasPoppedRef.current,
     hasRung: hasRungRef.current,
