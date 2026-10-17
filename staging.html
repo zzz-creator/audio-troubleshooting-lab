@@ -3216,7 +3216,7 @@ function DigitalSelStrip({ ch, idx, selected, onSelect, onSelectQuiet, onMute, o
   );
 }
 
-function DigitalChannelEditor({ ch, idx, srcLabel, pflLevel, onChange, onPhantomToggle, onInspect, powered, muteGroups, dcas }) {
+function DigitalChannelEditor({ ch, idx, srcLabel, pflLevel, onChange, onPhantomToggle, onInspect, powered, muteGroups, dcas, big16 = false }) {
   const set = (patch) => onChange({ ...ch, ...patch });
   const insp = (d) => { if (onInspect) onInspect(d); };
   const togglePhantom = onPhantomToggle ? () => onPhantomToggle() : () => set({ phantom: !ch.phantom });
@@ -3682,7 +3682,7 @@ function DigitalConsole({ state, setState, audio, faultChannelIdx, channelRefs, 
         </div>
         <div style={{ minHeight: 138 }}>
           {screenView === 'channel' && selCh && (
-            <DigitalChannelEditor ch={selCh} idx={sel} srcLabel={selSrcLabel} pflLevel={pflLevels[sel]}
+            <DigitalChannelEditor ch={selCh} idx={sel} srcLabel={selSrcLabel} pflLevel={pflLevels[sel]} big16={state.big16}
               onChange={(c) => updateChannel(sel, c)} onPhantomToggle={() => togglePhantom(sel)} onInspect={inspectTo}
               powered={mixerOn} muteGroups={state.muteGroups} dcas={state.dcas} />
           )}
