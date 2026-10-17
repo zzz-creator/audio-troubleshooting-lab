@@ -12399,21 +12399,26 @@ function App() {
   if (isMobile) return <MobileNotice onCapture={captureEmail} optedIn={emailDone}/>;
 
   // Verify-each checklist status for the brief. A speaker shows checked if it
-  // was already latched (verifiedRef) OR is playing right now, so the display
-  // never lags the latch. The win effect owns the persistent latch.
+  // was already latched (verifiedRef) OR reads reached right now. Read the
+  // SETTLED signal (audioBaseline), the same read the win latch uses: on the
+  // animated signal a source's envelope swings its contribution across the
+  // threshold every frame, so a check ticked on a peak and un-ticked on a
+  // trough, and the guide's STEP counter (with its spotlight) bounced
+  // 2 <-> 3 on The Gig's "Test every speaker" step. Same reason hintCtx.audio
+  // is the baseline below. The win effect owns the persistent latch.
   let verifyStatus = null;
   if (level.verifyEach && level.verifyEach.length) {
     verifyStatus = {};
     for (const v of level.verifyEach) {
-      const cont = audio.contributions[v.source];
+      const cont = audioBaseline.contributions[v.source];
       const lvl = cont ? (v.dest === 'pa' ? Math.max(cont.pa_l, cont.pa_r) : (cont[v.dest] || 0)) : 0;
       // Mirror the win latch exactly, including the othersMax one-sided
       // guard: the display must never show a check the latch would refuse
       // (a center-pan blast would otherwise tick both mains here while the
       // real latch stays unset, and the step would un-check later).
       const oneSided = !v.othersMax || Object.keys(v.othersMax).every((k) => (cont ? (cont[k] || 0) : 0) <= v.othersMax[k]);
-      const liveNow = lvl >= (v.min != null ? v.min : 0.25) && oneSided;
-      verifyStatus[v.dest] = !!verifiedRef.current[v.dest] || liveNow;
+      const reachedNow = lvl >= (v.min != null ? v.min : 0.25) && oneSided;
+      verifyStatus[v.dest] = !!verifiedRef.current[v.dest] || reachedNow;
     }
   }
 
