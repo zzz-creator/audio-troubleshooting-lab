@@ -4,50 +4,60 @@ An interactive mixing-console training simulator for [Audio University](https://
 
 ## Files
 
-Two parallel pairs — a sandbox and production. `IS_STAGING` auto-detects which is which from the content-script filename.
+One pair — the whole app:
 
-- **`staging.html` + `content-staging.js`** — the development sandbox. Do content work here.
-- **`index.html` + `content.js`** — production (the live embed). Content moves one way only, via **`node scripts/promote.js`**: it refuses to run if production holds any line staging lacks (wrong-direction-copy protection), copies `content-staging.js` → `content.js`, sets `content.js?v=N` in `index.html`, runs all three checks, and prints the direct links to re-share. `--dry-run` previews without changing anything; `--v N` sets the version instead of incrementing.
-- **Engine edits go into `index.html` directly** (or are mirrored into it) — do **not** copy `staging.html` over `index.html`. `index.html` carries the full signed-cookie unlock wiring and is currently ahead of the sandbox by design; a blind copy would revert it.
-- The app shell holds the engine, UI, and synthesized audio; the content file is the scenario library (`window.LEVELS`, `window.START_HERE`, `window.FEEDBACK_MODE`, etc.). **Edit the content file when adding or changing levels.**
+- **`index.html`** — engine, UI, synthesized audio, and the `?tier=member` unlock flow. It is the HTML source of truth.
+- **`content.js`** — the scenario library (`window.LEVELS`, `window.START_HERE`, `window.FEEDBACK_MODE`, etc.). **Edit this file when adding or changing levels.** The app calls `computeAudio(state)` in `index.html` for level state.
+- **`js/unlock.js`** — the signed-cookie unlock module behind the member flow. Frozen; see `UNLOCK_README.md` before touching it or the unlock wiring in `index.html`.
+- **`scripts/`** — the checks and the release command (below).
+- The app synthesizes audio directly from level state (no audio files); everything is computed from the JSON in `content.js` via Web Audio API.
+- Write copy against `GLOSSARY.md` and the locks in `UNLOCK_README.md`.
+- **Strategy, funnel, and diagnostic docs** (`strategy-*.md`, `funnel-plan-*.md`, `README*.md`) are untracked background; the council transcript/report (`council-*`) stay local.
+
+Releases go through **`node scripts/promote.js`**: it runs every check, bumps `content.js?v=N` in `index.html`, and prints the three direct links to re-share (`--dry-run` previews without changing anything; `--v N` sets the version instead of incrementing). Work on a branch, run the checks, merge to `main` — a push to `main` auto-deploys in about a minute.
+
+The `staging.html` / `content-staging.js` sandbox pair was removed 2026-10-18; it lives on in git history along with the old copy-and-refuse promotion gate.
 
 ## Hosting
 
-Served via GitHub Pages, embedded in an iframe on the Audio University Circle community. A commit to `main` auto-deploys within about a minute.
+Served via GitHub Pages. Links are distributed directly — the full-bleed iframe wrapper is retired (the page's own in-app embed support is unchanged).
 
-One production build, three iframe embeds that differ only by URL query (all share the full-bleed wrapper with `allow="autoplay; fullscreen"`). Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab` (no trailing slash — append `?tier=member&v=N` etc. directly; `/path?query` redirects here with the query intact)
+One production build, three direct links that differ only by URL query. Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab` (no trailing slash — append `?tier=member&v=N` etc. directly; `/path?query` redirects here with the query intact)
 
 | Variant | Query | Placement | Behavior |
 |---|---|---|---|
-| Members | `?tier=member&v=N` | Members-only Circle page (behind the access group) | Everything unlocked, no email gate |
-| Free — cold | `?v=N` | YouTube descriptions + any public link | Full free funnel; email gate at the finale |
-| Free — opted in | `?optedin=1&v=N` | Email sales copy + the Circle Resource Library (both audiences are already on the list) | Same free funnel, email gate skipped |
+| **Members** | `?tier=member&v=N` | Members-only Circle page (behind the access group) | Everything unlocked; no email gate |
+| **Free — cold** | `?v=N` | YouTube video descriptions + any public link | Full free funnel; email gate fires at the finale |
+| **Free — already opted in** | `?optedin=1&v=N` | All email sales copy (list is already opted in) + the Circle Resource Library (access to it = already on the list) | Same free funnel, email gate skipped |
 
-`&v=N` is a cache-buster the browser/CDN keys on (the root `index.html` shell is cached separately from `content.js?v=N`). **On every production push, `promote.js` sets `content.js?v=N` and prints the three direct links with the new `&v=N`** — update those links wherever they are shared (YouTube descriptions, email copy, community posts) so visitors get the new shell on first load instead of a stale cached one. The `?tier=member` unlock is soft — the real paywall is the Circle access group. See `funnel-plan-2026-07-10.md` for the full distribution map and rationale.
+The three URLs differ only by query and load `content.js?v=N`; a shared link and a typed URL behave identically.
+
+Why `?optedin=1`: everyone reached through email or the Resource Library is already on the list, so re-asking for the email is friction with no gain — `?optedin=1` skips it. Public/YouTube traffic is cold, so it gets the plain free link and the gate. Members are gated by the Circle access group, not by the URL (the `?tier=member` unlock is soft; the access group is the real wall).
+
+`&v=N` in any shared link (YouTube description, email) must be updated by hand after every production push.
 
 ## Progress and the drip model
 
-Member progress is saved in the browser via `localStorage`, keyed by each level's **stable `id`**. Two rules keep monthly content drops from disturbing anyone's progress:
+Free users can complete **The Gig** (a three-scenario arc ending in a show) plus free lessons. **Practice Mode** and **Run the Show** are locked to members (sell via the join link in the completion card). **Over-Essentials** scenarios unlock over a 12-month drip (members only): the earliest `unlocksAt`-eligible scenario is promoted into the member library once a week, so free users see practice+gig, members see a growing library.
 
-1. **Every scenario has a stable `id`.** Progress is stored by id, not by position.
-2. **Append only. Never renumber existing levels.** New scenarios go on the end with new ids.
+Start Here order is explicit in `START_HERE` — entry lesson, then numbered wiring/fault lessons, The Gig, post-gig debrief, courses. A `.locked` or `.feat-locked` lesson in `START_HERE_INDEX` renders grayed with a lock icon but the label is untouched. **Never reorder or rename entries in `START_HERE` casually — `check_lesson3_regression.js` pins its indexes** (e.g. `START_HERE[2]` must be `lesson3`, `START_HERE[14]` must be `gig`).
 
-Follow those two and you can drop new levels any time without resetting a single student.
+There is no backend: free/members-only gating is client-side only; scenario JSON is in `content.js`; email capture uses Kit embeds; join links use `?optedin=1`.
 
 ## Audio
 
-The app synthesizes its sound in the browser with the Web Audio API. It loads no audio files, so there is nothing to break across hosts. Sound starts off and resumes on the first click (browser autoplay policy).
+No audio files. Everything is synthesized directly from the level state via Web Audio API (oscillators for the band, noise for fans/PA, procedural envelopes per source). Nothing autoplays — the first user gesture (clicking a fader, button, etc.) initializes the `AudioContext`. The app contains its own `[Unlocked]` / `[Shared Rep]` handling for signed-cookie member unlock and deep-link state.
 
 ## Checks
 
-There is no build step, so these are the checks. Run them before a production push, and on the pair you changed.
+Run them before a production push — or just run `promote.js`, which runs all four. There is no build step, so these are the checks.
 
-| Check | What it catches |
+| Command | What it gates |
 |---|---|
-| `node scripts/promote.js` | The release gate, run before every production push. Refuses if `content.js` holds any line `content-staging.js` lacks or if there is nothing to promote, copies the content file, sets the version in `index.html`, runs the three checks below, and prints the direct links to re-share. |
-| `node scripts/check_syntax.js` | Parses every `<script type="text/babel">` block in each HTML file. A dropped bracket inside a babel block does **not** show up as a console error — the page just sits on "LOADING THE LAB…" forever — so this turns a browser round trip into a one-second check. |
-| `python scripts/lint_copy.py` | The content contract: lesson text is definitions-only, every glossary key exists, approved terminology, no control name or number silently dropped. Errors fail; warnings do not. Takes an optional file argument (default `content-staging.js`). |
+| `node scripts/promote.js` | The release command, run before every production push. Executes the four checks below, sets `content.js?v=N` in `index.html`, and prints the three direct links with the new version. Exits 1 on any failing check with nothing changed. `--dry-run` previews; `--v N` sets the version instead of incrementing. |
+| `node scripts/check_syntax.js` | Parses every `<script type="text/babel">` block in `index.html`. Catches the "page just sits on LOADING THE LAB…" class of bug in ~1s instead of a browser round trip. |
+| `python scripts/lint_copy.py` | Copy contract: no new `symptom`/`teach` on a lesson, every `def` key resolves against `GLOSSARY.md`, no dropped control names or numbers (zero-error gate; warnings allowed). Defaults to `content.js`. |
 | `node scripts/check_lesson3_regression.js` | Regression gate for Run the Show 03. Drives the real engine out of the HTML and the real lesson out of the content file, and fails if the guide's four hints and the win disagree on any way the student can set the two mains. |
 | `node scripts/check_tier_prompt.js` | The `?tier=member` landing flow, driven against the real production script block under a DOM shim: the member link prompts for the password, a correct unlock writes the signed cookies and re-renders the member tier, a cancelled/wrong answer falls back to free, an unlocked member is never re-asked, and cold free links are left alone. |
 
-Both node gates use `@babel/standalone`, committed at `scripts/vendor/babel.min.js` (the same 7.29.0 the HTML loads from unpkg), so they run offline with no npm install; `BABEL_STANDALONE` still overrides. The regression gate also takes `HTML=<path>` and `CONTENT=<path>` to point at another engine/content pair (e.g. `staging.html` + `content-staging.js`); it exits `2` if babel or the lesson is missing, `1` if the guide and the win disagree.
+The regression and tier gates also take `HTML=<path>` and `CONTENT=<path>` to point at an alternate engine/content pair; they exit 2 if babel or the lesson is missing, 1 if the guide and the win disagree. `@babel/standalone` comes from `scripts/vendor/` (committed, works offline) — `node_modules/` and `BABEL_STANDALONE=<path>` are optional overrides.

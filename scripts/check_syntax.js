@@ -6,7 +6,7 @@
  * error — the page just sits on "LOADING THE LAB…" forever. This catches it in
  * one second instead of a browser round trip.
  *
- * Usage:  node scripts/check_syntax.js [staging.html ...]
+ * Usage:  node scripts/check_syntax.js [index.html ...]
  * Needs:  @babel/standalone. BABEL_STANDALONE overrides; otherwise the
  *         committed copy in scripts/vendor/ is used, then node_modules.
  *         Exit 0 clean, 1 on any parse error.
@@ -17,7 +17,7 @@ const path = require('path');
 const HERE = __dirname;
 const ROOT = path.dirname(HERE);
 const files = process.argv.slice(2);
-if (!files.length) files.push(path.join(ROOT, 'staging.html'), path.join(ROOT, 'index.html'));
+if (!files.length) files.push(path.join(ROOT, 'index.html'));
 
 let Babel;
 const candidates = [

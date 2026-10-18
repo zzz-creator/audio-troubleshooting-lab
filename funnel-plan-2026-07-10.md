@@ -97,12 +97,14 @@ Decision made 2026-07-10: use the existing Soundcheck Checklist as the lead-magn
 
 ## Honest constraints
 - **There is no backend.** Kit is the only delivery mechanism. The checklist, the desktop link, and every nurture email are **Kit automations you build and test in Kit**, not something the app sends. The app can only capture the address.
-- **Nothing here is enforced.** `?tier=member` is a URL param, the gate lives in localStorage, and shared links bypass it. This is fine for a lead magnet (the goal is friction and funnel, not DRM), but treat the paywall as soft. The real protection is that the member content sits behind the Circle access-group page, which casual users never see.
+- **Nothing here is enforced.** `?tier=member` is a URL param, the gate lives in a signed-cookie unlock (localStorage before 2026-10; see `UNLOCK_README.md`), and shared links bypass it. This is fine for a lead magnet (the goal is friction and funnel, not DRM), but treat the paywall as soft. The real protection is that the member content sits behind the Circle access-group page, which casual users never see.
 - **Sequence:** the code changes are a short session. The slow parts are the asset design and the Kit automations, so start those in parallel.
 
 ## Live distribution map (as of 2026-07-10, production v67)
 
-One GitHub Pages build (`index.html` + `content.js`), three embeds that differ only by URL query. All use the same full-bleed iframe wrapper (`allow="autoplay; fullscreen"`); bump the `&v=` cache-buster token on every production push (currently v67), and update it wherever these are pasted.
+One GitHub Pages build (`index.html` + `content.js`), three direct links that differ only by URL query. Bump the `&v=` cache-buster on every production push (`node scripts/promote.js` does it and prints all three links), and update it wherever these are pasted.
+
+*(2026-10-18 correction: the full-bleed iframe wrapper — `allow="autoplay; fullscreen"` — is retired; distribution is direct GitHub Pages links now. The `v=67` values below are the 2026-07-10 snapshot — read them as query shapes, not live versions.)*
 
 Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab` (no trailing slash — the variant query goes straight after, e.g. `...audio-troubleshooting-lab?tier=member&v=N`)
 
@@ -114,4 +116,4 @@ Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab` (no trailing
 
 Rationale for the opted-in placements: everyone reached through email or the Resource Library is already on the list, so re-asking for the email is friction with no gain — `?optedin=1` skips it. Public/YouTube traffic is cold, so it gets the plain free link and the gate. Members are gated by the Circle access group, not by the URL (the `?tier=member` unlock is soft; the access group is the real wall).
 
-Caveat carried from Honest Constraints: Safari partitions third-party iframe storage, so the persisted opted-in/skip flag and saved progress may reset per visit inside Circle on Safari. The `?optedin=1` link still works every time because it re-sets the flag on arrival.
+~~Caveat carried from Honest Constraints: Safari partitions third-party iframe storage, so the persisted opted-in/skip flag and saved progress may reset per visit inside Circle on Safari. The `?optedin=1` link still works every time because it re-sets the flag on arrival.~~ **Struck 2026-10-18:** the caveat only applies inside cross-origin *iframe* embeds, which are retired; the direct links above are first-party, top-level visits where Safari does not partition storage. (`?optedin=1` re-setting the flag on arrival is unchanged.)

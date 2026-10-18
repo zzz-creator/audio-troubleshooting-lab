@@ -1,39 +1,33 @@
 #!/usr/bin/env node
-/* promote.js — the only sanctioned way to move content into production.
+/* promote.js — the release command for the Troubleshooting Lab.
  *
- * Why this exists: staging.html/content-staging.js and index.html/content.js
- * were kept in sync by hand, and the pair drifted 134 versions apart with the
- * cache-buster bumped in several places per push. One forgotten bump ships a
- * stale shell; one copy in the wrong direction reverts shipped fixes. This
- * script makes the dangerous act gated and mechanical.
+ * Why this exists: releases used to be a hand copy between a staging pair
+ * (staging.html/content-staging.js) that had drifted 134 versions apart, with
+ * the cache-buster bumped in several places per push. The sandbox pair was
+ * removed 2026-10-18, so a release is now: run every check, bump the version,
+ * print the links. Scripting it means the bump can never be forgotten, and
+ * every gate runs even for engine-only releases (which have no content to
+ * copy). The old copy-and-refuse gate lives in git history.
  *
  * Usage:  node scripts/promote.js [--dry-run] [--v N]
- *   --dry-run   run every gate, print what would change, change nothing
+ *   --dry-run   run every check, print what would change, change nothing
  *   --v N       set content.js?v=N instead of incrementing the current value
  *
  * Order of operations:
- *   1. REGRESSION GATE  git diff --no-index content.js content-staging.js —
- *      refuses if production holds any line staging lacks (a wrong-direction
- *      copy already happened somewhere), and refuses when there is nothing to
- *      promote. The subset property is what makes the copy safe.
- *   2. Preflight checks on the staging pair: check_syntax.js (both HTMLs),
- *      lint_copy.py (staging content), lesson3 regression (staging pair).
- *   3. Copy content-staging.js -> content.js, set the version in index.html
- *      (the one in-repo location of content.js?v=N).
- *   4. Post-check: lesson3 regression against the SHIPPING pair (index.html +
- *      the freshly promoted content.js), because the two engines differ.
- *   5. Print the direct links to update wherever they are shared.
+ *   1. Checks: check_syntax.js, lint_copy.py, the lesson3 regression, and
+ *      the tier-prompt gate — all four must pass before anything changes.
+ *   2. Bump content.js?v=N in index.html (the one in-repo location of it),
+ *      then read the file back to confirm the write.
+ *   3. Re-run check_syntax.js on the bumped file.
+ *   4. Print the three direct links to update wherever they are shared.
  *
- * Exit: 0 promoted (or dry-run clean), 1 a gate/check refused, 2 fatal setup.
+ * Exit: 0 released (or dry-run clean), 1 a check refused, 2 fatal setup.
  */
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.dirname(__dirname);
-const PROD_CONTENT = path.join(ROOT, 'content.js');
-const STG_CONTENT = path.join(ROOT, 'content-staging.js');
-const STG_HTML = path.join(ROOT, 'staging.html');
 const PROD_HTML = path.join(ROOT, 'index.html');
 const BASE_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab'; // no trailing slash: links must be .../audio-troubleshooting-lab?tier=member&v=N, and /path?query 301s here with the query intact
 
@@ -42,7 +36,7 @@ const DRY = args.includes('--dry-run');
 const vIdx = args.indexOf('--v');
 const VERSION_ARG = vIdx !== -1 ? Number(args[vIdx + 1]) : null;
 if (vIdx !== -1 && (!Number.isInteger(VERSION_ARG) || VERSION_ARG <= 0)) {
-  console.error('FATAL: --v needs a positive integer, e.g. --v 242');
+  console.error('FATAL: --v needs a positive integer, e.g. --v 244');
   process.exit(2);
 }
 
@@ -51,60 +45,25 @@ function run(label, cmd, cmdArgs, opts) {
   const r = spawnSync(cmd, cmdArgs, Object.assign({ cwd: ROOT, stdio: 'inherit' }, opts || {}));
   if (r.error) { console.error(`FATAL: could not run ${cmd}: ${r.error.message}`); process.exit(2); }
   if (r.status !== 0) {
-    console.error(`\nPROMOTE REFUSED: ${label} failed (exit ${r.status}). Nothing further was changed.`);
+    console.error(`\nPROMOTE REFUSED: ${label} failed (exit ${r.status}). Nothing was changed.`);
     process.exit(1);
   }
 }
-
-function gitNumstat() {
-  const r = spawnSync('git', ['-c', 'color.ui=never', 'diff', '--no-index', '--numstat', '--', 'content.js', 'content-staging.js'], { cwd: ROOT, encoding: 'utf8' });
-  if (r.error) { console.error(`FATAL: git unavailable: ${r.error.message}`); process.exit(2); }
-  // exit 0 = identical, 1 = differences (both fine), >1 = real git failure
-  if (r.status > 1) { console.error(`FATAL: git diff failed:\n${r.stderr || ''}`); process.exit(2); }
-  const line = (r.stdout || '').split('\n').find((l) => l.trim());
-  if (!line) return null; // no output and status 0/1: treat as identical
-  const [ins, del] = line.split('\t');
-  return { insertions: ins === '-' ? 0 : Number(ins), deletions: del === '-' ? 0 : Number(del) };
-}
-
-function prodOnlyLines() {
-  const r = spawnSync('git', ['-c', 'color.ui=never', 'diff', '--no-index', '-U0', '--', 'content.js', 'content-staging.js'], { cwd: ROOT, encoding: 'utf8' });
-  return (r.stdout || '').split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).slice(0, 15);
-}
-
-// ── 1. Regression gate ─────────────────────────────────────────────────────
-console.log('--- REGRESSION GATE: content.js must be a strict subset of content-staging.js');
-const stat = gitNumstat();
-if (stat && stat.deletions > 0) {
-  console.error(`\nPROMOTE REFUSED: production holds ${stat.deletions} line(s) that content-staging.js does NOT have.`);
-  console.error('A wrong-direction copy has already happened somewhere. Reconcile the two files first.');
-  console.error('Production-only lines (up to 15):');
-  prodOnlyLines().forEach((l) => console.error(`  ${l}`));
-  process.exit(1);
-}
-if (!stat || stat.insertions === 0) {
-  console.error('\nPROMOTE REFUSED: content.js already matches content-staging.js — nothing to promote.');
-  console.error('If you meant to release engine-only changes, bump the version in index.html by hand.');
-  process.exit(1);
-}
-console.log(`  ok    content.js is a strict subset (+${stat.insertions} staged lines, 0 production-only)`);
 
 const currentMatch = /content\.js\?v=(\d+)/.exec(fs.readFileSync(PROD_HTML, 'utf8'));
 if (!currentMatch) { console.error('FATAL: could not find content.js?v=N in index.html'); process.exit(2); }
 const currentV = Number(currentMatch[1]);
 const targetV = VERSION_ARG !== null ? VERSION_ARG : currentV + 1;
-console.log(`  ok    version: ${currentV} -> ${targetV}${VERSION_ARG !== null ? ' (set via --v)' : ' (auto-increment)'}`);
+console.log(`version: ${currentV} -> ${targetV}${VERSION_ARG !== null ? ' (set via --v)' : ' (auto-increment)'}`);
 
-// ── 2. Preflight checks on the staging pair ────────────────────────────────
-run('check_syntax.js (both HTML files)', process.execPath, [path.join(ROOT, 'scripts', 'check_syntax.js')]);
-run('lint_copy.py (staging content)', process.env.PYTHON_BIN || 'python', [path.join(ROOT, 'scripts', 'lint_copy.py'), 'content-staging.js']);
-run('lesson3 regression (staging pair)', process.execPath, [path.join(ROOT, 'scripts', 'check_lesson3_regression.js')], {
-  env: Object.assign({}, process.env, { HTML: 'staging.html', CONTENT: 'content-staging.js' }),
-});
+// ── 1. Every gate, before anything changes ─────────────────────────────────
+run('check_syntax.js', process.execPath, [path.join(ROOT, 'scripts', 'check_syntax.js')]);
+run('lint_copy.py (content.js)', process.env.PYTHON_BIN || 'python', [path.join(ROOT, 'scripts', 'lint_copy.py')]);
+run('lesson3 regression', process.execPath, [path.join(ROOT, 'scripts', 'check_lesson3_regression.js')]);
+run('tier prompt gate', process.execPath, [path.join(ROOT, 'scripts', 'check_tier_prompt.js')]);
 
 if (DRY) {
-  console.log(`\nDRY RUN: no files changed. Would copy content-staging.js -> content.js, set content.js?v=${targetV}`);
-  console.log('Would then re-run the lesson3 regression against the shipping pair (index.html + content.js).');
+  console.log(`\nDRY RUN: no files changed. Would set content.js?v=${targetV} in index.html.`);
   console.log(`\nLinks that would need ${targetV}:`);
   console.log(`  cold      ${BASE_URL}?v=${targetV}`);
   console.log(`  member    ${BASE_URL}?tier=member&v=${targetV}`);
@@ -112,25 +71,23 @@ if (DRY) {
   process.exit(0);
 }
 
-// ── 3. Copy + version bump ─────────────────────────────────────────────────
-fs.copyFileSync(STG_CONTENT, PROD_CONTENT);
-console.log('\n--- copied content-staging.js -> content.js');
-
+// ── 2. Version bump ────────────────────────────────────────────────────────
 const html = fs.readFileSync(PROD_HTML, 'utf8');
 const bumped = html.replace(/content\.js\?v=\d+/, `content.js?v=${targetV}`);
 if (bumped === html && currentV !== targetV) { console.error('FATAL: version rewrite did not apply'); process.exit(2); }
 fs.writeFileSync(PROD_HTML, bumped);
-console.log(`--- index.html now requests content.js?v=${targetV}`);
+// Read back rather than trusting the write: the bump is this script's only mutation.
+const verify = /content\.js\?v=(\d+)/.exec(fs.readFileSync(PROD_HTML, 'utf8'));
+if (!verify || Number(verify[1]) !== targetV) { console.error(`FATAL: index.html does not verify at v${targetV}`); process.exit(2); }
+console.log(`\n--- index.html now requests content.js?v=${targetV}`);
 
-// ── 4. Post-check: the shipping pair ───────────────────────────────────────
-run('lesson3 regression (shipping pair: index.html + promoted content.js)', process.execPath, [path.join(ROOT, 'scripts', 'check_lesson3_regression.js')]);
-run('check_syntax.js (post-bump, both HTML files)', process.execPath, [path.join(ROOT, 'scripts', 'check_syntax.js')]);
+// ── 3. Post-bump syntax on the file that just changed ──────────────────────
+run('check_syntax.js (post-bump)', process.execPath, [path.join(ROOT, 'scripts', 'check_syntax.js')]);
 
-// ── 5. Report ──────────────────────────────────────────────────────────────
+// ── 4. Report ──────────────────────────────────────────────────────────────
 console.log(`
-PROMOTED: content.js now carries the staging content at v${targetV}.
-Checks: syntax (both HTMLs), copy lint (staging content, byte-identical to what shipped),
-        lesson3 regression (staging pair AND shipping pair) — all green.
+RELEASED: index.html now requests content.js?v=${targetV}.
+Checks: syntax, copy lint, lesson3 regression, tier prompt gate — all green.
 
 Update ${targetV} in every place these direct links are shared (YouTube descriptions,
 email copy, Circle/resource links):
@@ -139,4 +96,4 @@ email copy, Circle/resource links):
   member    ${BASE_URL}?tier=member&v=${targetV}
   opted-in  ${BASE_URL}?optedin=1&v=${targetV}
 
-Then commit by name: content.js index.html`);
+Then commit by name: index.html (plus every other file you changed for this release)`);

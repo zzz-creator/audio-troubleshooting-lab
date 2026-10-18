@@ -11,7 +11,7 @@ Enforces the content contract mechanically so it cannot regress quietly:
   - Terminology matches the approved glossary (GLOSSARY.md).
   - No copy pass silently drops a control name or a number.
 
-Run:  python3 scripts/lint_copy.py [content-staging.js]
+Run:  python3 scripts/lint_copy.py [content.js]
 Exit: 0 clean, 1 if any error. Warnings do not fail the build.
 """
 import json
@@ -21,7 +21,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-TARGET = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'content-staging.js')
+TARGET = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'content.js')
 
 errors, warnings = [], []
 
@@ -98,7 +98,7 @@ IMPERATIVE = re.compile(
 # Win-condition source whitelists, per board. A `source:` in a win condition or
 # verifyEach must be one the engine can actually route on that board; naming any
 # other makes the lesson unwinnable (see check 5b). Keep in lockstep with the
-# SOURCES catalog in staging.html: MX-8 patches four inputs plus the FOH
+# SOURCES catalog in index.html: MX-8 patches four inputs plus the FOH
 # playback line; the MX-16 band patches its fourteen inputs plus playback.
 MX8_SOURCES = {'vocal', 'vocal2', 'guitar', 'laptop', 'playback'}
 MX16_SOURCES = {'kick', 'snare', 'hat', 'rack', 'floor', 'ohl', 'ohr', 'bass',

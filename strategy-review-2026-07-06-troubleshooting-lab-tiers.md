@@ -110,3 +110,15 @@ Proceed with Show Day, with three non-negotiable conditions:
 On sequencing (Fork A), build Show Day first, then the new-member path immediately after. Show Day is the smaller build (it reuses the existing show engine), it is the shareable YouTube hook that feeds new leads, and its streak and daily infrastructure are the exact primitives the member path will reuse. So building it first also builds the retention plumbing the member path needs. That said, the new-member start-here path is the higher-value retention lever on its own and should not sit on the shelf; it is the very next thing after Show Day, not a someday.
 
 One net-new suggestion outside Show Day: give free users a single taste of a Practice rep inside Essentials, so membership is felt before it is pitched. Small give, meaningful lift on the lesson-9 conversion.
+
+---
+
+## Decisions recorded 2026-10-18 (council review with Kyle)
+
+The forks above stop floating as of this date:
+
+- **Show Day split (Fork C): free challenge, paid mastery loop — as the conditional recommendation above.** Free: the daily challenge, the result, and the streak. Paid: the full post-show debrief, harder daily modifiers, the historical archive and stats, and community comparison. Never split on number of attempts; the three-strikes lockout stays gone.
+- **Sequencing (Fork A): the new-member start-here path ships FIRST, Show Day after it.** This reverses the recommendation above. The council's read: month-one churn among brand-new members is the more fragile revenue than the post-Essentials engagement cliff, so the member path gets built before the daily-challenge build. Show Day remains approved as the next build after it.
+- **Still open (flagged by the council):** the pass/fail-vs-no-scoring reconciliation in this doc must be settled before Show Day starts, and any conversion work needs a named drop-off number to measure against first.
+
+Status: decisions only — neither is built as of 2026-10-18.

@@ -89,9 +89,14 @@ the app's behavior is recorded here so copy and engine cannot drift apart.
 
 - **mute** kills the channel everywhere downstream, including pre-fader monitor
   sends. This matches Allen & Heath behavior. Behringer and Midas do the opposite
-  by default. Engine: `staging.html:821`.
-- **meter** is tapped pre-fader, so it follows the gain knob and does not move when
-  the fader moves. Matches most digital consoles. Engine: `staging.html:749`.
+  by default. Engine: `index.html:997` (monitor-send gate; `index.html:919` for the main-mix path).
+- **meter** reads the channel post-fader — it moves with the fader and shows that
+  channel's contribution to the mix — and reads the pre-fader input while the
+  channel is PFL'd, so a fader-down channel still meters live in PFL. Engine:
+  `index.html:3611` (strip meter); `index.html:11145` mirrors it on the digital
+  desk. (Corrected 2026-10-18: the entry claimed a pre-fader tap that never moves
+  with the fader — that describes `chanIn`, not what the meter displays — and the
+  pointer still named the removed `staging.html`.)
 - **"top of the green"** describes this console's meter. It is not an industry
   standard. Yamaha teaches "yellow on peaks," others teach 15 dB below clip.
 
