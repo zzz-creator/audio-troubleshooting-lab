@@ -104,7 +104,7 @@ Decision made 2026-07-10: use the existing Soundcheck Checklist as the lead-magn
 
 One GitHub Pages build (`index.html` + `content.js`), three embeds that differ only by URL query. All use the same full-bleed iframe wrapper (`allow="autoplay; fullscreen"`); bump the `&v=` cache-buster token on every production push (currently v67), and update it wherever these are pasted.
 
-Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab/`
+Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab` (no trailing slash — the variant query goes straight after, e.g. `...audio-troubleshooting-lab?tier=member&v=N`)
 
 | Variant | URL query | Where Kyle placed it (2026-07-10) | Behavior |
 |---|---|---|---|

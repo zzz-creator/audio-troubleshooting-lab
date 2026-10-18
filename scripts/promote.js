@@ -35,7 +35,7 @@ const PROD_CONTENT = path.join(ROOT, 'content.js');
 const STG_CONTENT = path.join(ROOT, 'content-staging.js');
 const STG_HTML = path.join(ROOT, 'staging.html');
 const PROD_HTML = path.join(ROOT, 'index.html');
-const BASE_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab/';
+const BASE_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab'; // no trailing slash: links must be .../audio-troubleshooting-lab?tier=member&v=N, and /path?query 301s here with the query intact
 
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry-run');

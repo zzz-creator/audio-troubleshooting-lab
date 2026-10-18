@@ -7874,7 +7874,7 @@ const joinUrl = (content) => JOIN_URL + '?utm_source=troubleshooting-lab&utm_med
 // tier itself (see TIER below), so opening ?tier=member directly still asks.
 // The unlock is remembered in localStorage and shared across tabs on this
 // origin, so clicking the link does not re-prompt on the page it opens.
-const MEMBER_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab/?tier=member';
+const MEMBER_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab?tier=member';
 const MEMBER_PASSWORD = 'C1rcl3M3mb3r';
 
 function isMemberUnlocked() {
@@ -8160,11 +8160,16 @@ async function initTier() {
       return;
     }
     if (window.UnlockSystem) {
-      const result = await window.UnlockSystem.readUnlock();
-      if (result.unlocked) {
-        TIER = 'member';
-        try { window.history.replaceState(null, '', freeVariantUrl()); } catch (e) {}
-        return;
+      try {
+        const result = await window.UnlockSystem.readUnlock();
+        if (result.unlocked) {
+          TIER = 'member';
+          try { window.history.replaceState(null, '', freeVariantUrl()); } catch (e) {}
+          return;
+        }
+      } catch (e) {
+        // Unreadable unlock state must still ask: the outer catch would drop
+        // the member link to free silently, with no prompt at all.
       }
     }
     var r = requestMemberPassword();
@@ -8191,6 +8196,14 @@ async function initTier() {
     TIER = 'free';
   }
 })();
+
+// initTier shipped in a8e16fd but had no call site, so ?tier=member never
+// prompted — it silently loaded the free tier. It settles on the promise
+// chain after the root render below, and nothing React-side observes TIER,
+// so the __remountApp hook at the mount point is what applies the member tier.
+initTier().then(() => {
+  if (TIER === 'member' && typeof window.__remountApp === 'function') window.__remountApp();
+});
 
 // Shared-rep deep link: ?rep=SEED (optionally &faults=N) loads the exact same
 // Practice rep for anyone who opens it — reps are already seeded, so the seed
@@ -14063,7 +14076,13 @@ class ErrorBoundary extends React.Component {
     );
   }
 }
-ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
+const appRoot = ReactDOM.createRoot(document.getElementById('root'));
+appRoot.render(<ErrorBoundary><App/></ErrorBoundary>);
+// initTier's password prompt resolves after this first render (blocking
+// dialog on the promise chain) and TIER is a plain variable React does not
+// subscribe to — re-render when the tier settles so a freshly-unlocked
+// member actually sees the member tier.
+window.__remountApp = () => appRoot.render(<ErrorBoundary><App/></ErrorBoundary>);
 
 // Build version badge. Reads the content script's ?v straight from the loaded
 // DOM, so it shows exactly which build the page is running — a quick way to

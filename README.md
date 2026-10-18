@@ -15,7 +15,7 @@ Two parallel pairs — a sandbox and production. `IS_STAGING` auto-detects which
 
 Served via GitHub Pages, embedded in an iframe on the Audio University Circle community. A commit to `main` auto-deploys within about a minute.
 
-One production build, three iframe embeds that differ only by URL query (all share the full-bleed wrapper with `allow="autoplay; fullscreen"`). Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab/`
+One production build, three iframe embeds that differ only by URL query (all share the full-bleed wrapper with `allow="autoplay; fullscreen"`). Base URL: `https://zzz-creator.github.io/audio-troubleshooting-lab` (no trailing slash — append `?tier=member&v=N` etc. directly; `/path?query` redirects here with the query intact)
 
 | Variant | Query | Placement | Behavior |
 |---|---|---|---|
@@ -48,5 +48,6 @@ There is no build step, so these are the checks. Run them before a production pu
 | `node scripts/check_syntax.js` | Parses every `<script type="text/babel">` block in each HTML file. A dropped bracket inside a babel block does **not** show up as a console error — the page just sits on "LOADING THE LAB…" forever — so this turns a browser round trip into a one-second check. |
 | `python scripts/lint_copy.py` | The content contract: lesson text is definitions-only, every glossary key exists, approved terminology, no control name or number silently dropped. Errors fail; warnings do not. Takes an optional file argument (default `content-staging.js`). |
 | `node scripts/check_lesson3_regression.js` | Regression gate for Run the Show 03. Drives the real engine out of the HTML and the real lesson out of the content file, and fails if the guide's four hints and the win disagree on any way the student can set the two mains. |
+| `node scripts/check_tier_prompt.js` | The `?tier=member` landing flow, driven against the real production script block under a DOM shim: the member link prompts for the password, a correct unlock writes the signed cookies and re-renders the member tier, a cancelled/wrong answer falls back to free, an unlocked member is never re-asked, and cold free links are left alone. |
 
 Both node gates use `@babel/standalone`, committed at `scripts/vendor/babel.min.js` (the same 7.29.0 the HTML loads from unpkg), so they run offline with no npm install; `BABEL_STANDALONE` still overrides. The regression gate also takes `HTML=<path>` and `CONTENT=<path>` to point at another engine/content pair (e.g. `staging.html` + `content-staging.js`); it exits `2` if babel or the lesson is missing, `1` if the guide and the win disagree.
