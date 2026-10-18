@@ -48,6 +48,10 @@ There is no backend: free/members-only gating is client-side only; scenario JSON
 
 No audio files. Everything is synthesized directly from the level state via Web Audio API (oscillators for the band, noise for fans/PA, procedural envelopes per source). Nothing autoplays — the first user gesture (clicking a fader, button, etc.) initializes the `AudioContext`. The app contains its own `[Unlocked]` / `[Shared Rep]` handling for signed-cookie member unlock and deep-link state.
 
+## Funnel events (local only)
+
+Every funnel beat is recorded by `track()` in `index.html` into a bounded localStorage ring buffer (`audiou-lab-funnel-v1`, ~200 events). Nothing is sent anywhere — `FUNNEL_ENDPOINT` is deliberately blank until an analytics service is actually chosen. In the browser console: `__funnelDump()` returns the events (oldest first), `__funnelClear()` empties the buffer. Events: `landing`, `start_here_progress`, `gate_shown`, `email_submit`, `email_skip`, `practice_taste`, `ear_training`, `join_panel_shown`, `member_cta_click`.
+
 ## Checks
 
 Run them before a production push — or just run `promote.js`, which runs all four. There is no build step, so these are the checks.

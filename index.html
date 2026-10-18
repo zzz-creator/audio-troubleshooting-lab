@@ -133,7 +133,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=243"></script>
+<script src="content.js?v=244"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -7684,6 +7684,44 @@ window.AudienceSplMeter = AudienceSplMeter;
 <script type="text/babel">
 const { useState: uS, useEffect: uE, useRef: uR, useMemo: uM, useCallback: uC } = React;
 
+// ── FUNNEL INSTRUMENTATION (2026-10-18, local-only by decision) ────────────
+// Every event lands in a bounded localStorage ring buffer and nothing ever
+// leaves the page: FUNNEL_ENDPOINT is blank on purpose — no analytics service
+// was chosen and no infrastructure was stood up for this. When one is chosen,
+// wire it into the POST branch below and nowhere else. Read the funnel from
+// the console: __funnelDump() returns the events (oldest first),
+// __funnelClear() empties the buffer.
+// track() never throws: a locked-down iframe, a full quota, or a storage
+// exception must not break the lesson (the same rule the profile save
+// follows), so every path through it is swallowed.
+const FUNNEL_KEY = 'audiou-lab-funnel-v1';
+const FUNNEL_MAX = 200; // ~200 events: a full Start Here run plus replays
+const FUNNEL_ENDPOINT = ''; // blank = local buffer only; set to a URL to ship
+function track(stage, detail) {
+  try {
+    const ev = { t: Date.now(), stage: stage };
+    if (detail) for (const k in detail) ev[k] = detail[k];
+    let buf = null;
+    try { buf = JSON.parse(localStorage.getItem(FUNNEL_KEY)); } catch (e) { buf = null; }
+    if (!Array.isArray(buf)) buf = [];
+    buf.push(ev);
+    while (buf.length > FUNNEL_MAX) buf.shift();
+    localStorage.setItem(FUNNEL_KEY, JSON.stringify(buf));
+    if (FUNNEL_ENDPOINT) {
+      // Fire-and-forget, never awaited, errors swallowed — reserved for when
+      // an endpoint exists. Unwired deliberately (see above).
+      try { fetch(FUNNEL_ENDPOINT, { method: 'POST', body: JSON.stringify(ev), keepalive: true }); } catch (e) {}
+    }
+  } catch (e) { /* best-effort: the lesson continues either way */ }
+}
+if (typeof window !== 'undefined') {
+  window.track = track;
+  window.__funnelDump = function () {
+    try { const b = JSON.parse(localStorage.getItem(FUNNEL_KEY)); return Array.isArray(b) ? b : []; } catch (e) { return []; }
+  };
+  window.__funnelClear = function () { try { localStorage.removeItem(FUNNEL_KEY); } catch (e) {} };
+}
+
 // Fixed design width for the whole board. The stage source cards sit at
 // percentage offsets but are a fixed 154px wide, so the stage needs to be wide
 // enough for them not to overlap; the console row is also fixed-width. We lay
@@ -8216,6 +8254,11 @@ async function initTier() {
     TIER = 'free';
   }
 })();
+
+// Funnel landing: logged before the tier flow runs so a stall there can't
+// lose it. The query string carries the entry context (tier/optedin/rep/v),
+// truncated so a pasted URL can't bloat the ring buffer.
+try { track('landing', { q: String(window.location.search || '').slice(0, 160) }); } catch (e) {}
 
 // initTier shipped in a8e16fd but had no call site, so ?tier=member never
 // prompted — it silently loaded the free tier. It settles on the promise
@@ -8902,7 +8945,7 @@ function CompletionCta({ open, onClose, tier, onGoPractice }) {
                 background: 'linear-gradient(180deg, var(--green), #2c9d52)', color: '#0a0a0c',
                 border: '1px solid #2c9d52', borderRadius: 5, cursor: 'pointer',
               }}>TRY PRACTICE MODE →</button>
-              <a href={joinUrl('completion-card')} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
+              <a href={joinUrl('completion-card')} onClick={() => track('member_cta_click', { src: 'completion-card' })} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
                 padding: '9px 16px', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.8,
                 background: '#16161a', color: 'var(--accent)', border: '1px solid var(--accent)',
                 borderRadius: 5, cursor: 'pointer', textDecoration: 'none',
@@ -8929,6 +8972,9 @@ function EmailGate({ open, onSubmit, onSkip }) {
   const [err, setErr] = uS(false);
   const [nameErr, setNameErr] = uS(false);
   const [sent, setSent] = uS(false);
+  // Funnel: one gate_shown per showing. Hook first, early return after —
+  // hook order must stay unconditional.
+  uE(() => { if (open) track('gate_shown'); }, [open]);
   if (!open) return null;
   const go = () => {
     const okName = name.trim().length > 0;
@@ -8940,6 +8986,7 @@ function EmailGate({ open, onSubmit, onSkip }) {
     // Practice) runs on CONTINUE.
     submitToKit(val.trim(), name.trim());
     setSent(true);
+    track('email_submit');
   };
   return (
     <div style={{
@@ -9869,7 +9916,7 @@ function FaultCatalog({ open, onClose, tier }) {
             <div style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5, flex: 1, minWidth: 180 }}>
               Start Here is free, plus a taste of Practice Mode and Ear Training. The full lesson library and unlimited practice come with Audio University membership.
             </div>
-            <a href={joinUrl('catalog')} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
+            <a href={joinUrl('catalog')} onClick={() => track('member_cta_click', { src: 'catalog' })} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
               padding: '8px 16px', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.8,
               background: 'linear-gradient(180deg, var(--accent), #c79a1f)', color: '#0a0a0c',
               border: '1px solid #c79a1f', borderRadius: 4, cursor: 'pointer', textDecoration: 'none',
@@ -10096,6 +10143,9 @@ function App() {
   // Free tier: clicking a locked challenge in the picker shows this pitch
   // overlay instead of loading the scenario.
   const [pitchFor, setPitchFor] = uS(null);
+  // Funnel: a member pitch showing (locked catalog click, taste exhausted, or
+  // feedback lock), keyed by the level that opened it.
+  uE(() => { if (pitchFor) track('join_panel_shown', { id: pitchFor.id || null }); }, [pitchFor]);
   // Progress save-code modal (copy your code / paste to restore / reset).
   const [saveModalOpen, setSaveModalOpen] = uS(false);
   // The I/O list panel — the show's paperwork, available on every level.
@@ -10895,6 +10945,10 @@ function App() {
           setSolved(true);
           bumpStreak(); // any finished session (lesson, rep, ring-out) counts today
           setCompleted(c => ({ ...c, [level.id]: true }));
+          // Funnel: lessons and gig challenges are Start Here progress;
+          // practice and ear-training completions report under their own
+          // families below so the funnel can tell the three apart.
+          if (!level.isPractice && !level.isFeedbackMode) track('start_here_progress', { id: level.id, tier: TIER });
           // A finished practice rep counts, every time — that's the metric
           // the debrief celebrates. Record it into the per-fault ledger first
           // (reads this rep's moves/hints/par), then bump the counter.
@@ -10903,12 +10957,14 @@ function App() {
             // Free tier: a finished rep spends one of the free-taste budget.
             // Members are never counted (their reps are unlimited anyway).
             if (TIER !== 'member') setFreePractice(n => n + 1);
+            track('practice_taste', { tier: TIER });
           }
           // Free tier Ear Training: a finished round spends the guided or by-ear
           // budget, depending on the mode it was run in.
           if (level.isFeedbackMode && TIER !== 'member') {
             if (feedbackByEar) setEtByEar(n => n + 1);
             else setEtGuided(n => n + 1);
+            track('ear_training', { mode: feedbackByEar ? 'by_ear' : 'guided' });
           }
         }, 900);
       }
@@ -12787,7 +12843,7 @@ function App() {
       <EmailGate
         open={finaleEmail && TIER !== 'member' && !emailDone && !tourOpen}
         onSubmit={(email, name) => { captureEmail(email, name); setFinaleEmail(false); loadLevel(window.LEVELS.length); }}
-        onSkip={() => { setFinaleEmail(false); setCtaOpen(true); }}/>
+        onSkip={() => { track('email_skip'); setFinaleEmail(false); setCtaOpen(true); }}/>
       {/* The welcome chooser is retired: a fresh free visitor gets the "Know
           your console" walkthrough, and everyone else lands with the mode menu
           open (startOpen on TopBar), so the menu is the single universal entry.
@@ -12871,7 +12927,7 @@ function App() {
               {pitchFor.title} is part of the Audio University membership.
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <a href={joinUrl('pitch-overlay')} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
+              <a href={joinUrl('pitch-overlay')} onClick={() => track('member_cta_click', { src: 'pitch-overlay' })} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
                 padding: '8px 16px', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.8,
                 background: 'linear-gradient(180deg, var(--accent), #c79a1f)', color: '#0a0a0c',
                 border: '1px solid #c79a1f', borderRadius: 4, cursor: 'pointer', textDecoration: 'none',
@@ -13995,7 +14051,7 @@ function SolvedCard({ level, onNext, hasNext, feedbackLabel, feedbackCaption, fe
               <div style={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.5, textAlign: 'center' }}>
                 With practice, members learn to pick these ringing frequencies out by ear. Join to keep training, or try one round on your own.
               </div>
-              <a href={joinUrl('ear-training')} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
+              <a href={joinUrl('ear-training')} onClick={() => track('member_cta_click', { src: 'ear-training' })} target="_blank" rel="noopener noreferrer" className="mono ui-no-select" style={{
                 display: 'block', width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 10, fontWeight: 800, letterSpacing: 1, textAlign: 'center',
                 background: 'linear-gradient(180deg, var(--accent), #c79a1f)', color: '#0a0a0c', border: '1px solid #c79a1f', borderRadius: 3, cursor: 'pointer', textDecoration: 'none',
               }}>JOIN AUDIO UNIVERSITY →</a>
