@@ -1585,6 +1585,9 @@ function bandState() {
   // ?band=1 URL — is what drives the direct-to-DOM meters, the steady audible
   // gains, and skipping the per-frame re-render, so those apply whenever the
   // 16-channel desk is active (via the size selector, on any environment).
+  // The desk comes up patched in order (CH n <- IN n), so the patch list is
+  // as long as the desk and a re-patch never has to invent the tail.
+  s.inputPatch = s.channels.map((_, i) => i + 1);
   s.big16 = true;
   return s;
 }
@@ -3198,7 +3201,7 @@ function DigitalSelStrip({ ch, idx, selected, onSelect, onSelectQuiet, onMute, o
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginTop: 1 }}>
           <F value={ch.fader} onChange={(v) => onFader(v)} height={150} />
-          <M level={level} height={150} segments={20} />
+          <M level={level} height={150} segments={20} mkey={'dchlvl:' + idx}/>
         </div>
 
         {/* SOLO + MUTE under the fader, the way a console lays them out. */}
@@ -3269,7 +3272,7 @@ function DigitalChannelEditor({ ch, idx, srcLabel, pflLevel, onChange, onPhantom
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
               <BP active={ch.phantom} onClick={togglePhantom} label="48V" color="var(--hot)" width={36} height={15} fontSize={7.5}
                 tip={(!ch.mute && ch.fader > 0.05) ? 'Phantom power (+48V). This channel is LIVE: mute it before switching +48V or the pop goes to the speakers.' : 'Phantom power (+48V) for condenser mics and active DIs. Switch it while the channel is muted.'} />
-              <window.MiniMeter level={pflLevel} width={36} segments={9} />
+              <window.MiniMeter level={pflLevel} width={36} segments={9} mkey={'pfl:' + idx}/>
               <div className="mono" style={{ fontSize: 6.5, color: ch.solo ? 'var(--amber)' : 'var(--ink-3)', fontWeight: 700 }}>{ch.solo ? 'PFL' : 'IN'}</div>
             </div>
           </div>
@@ -3482,7 +3485,7 @@ function DigitalIORow({ state, setState, channelRefs, masterLRef, masterRRef, au
 // as a channel strip (scribble + fader + meter) but it controls a bus, not a
 // channel. The DCA-down fault lives here, so finding it means switching layers,
 // the real digital skill.
-function DigitalBusStrip({ name, kind, color, value, onChange, level, powered }) {
+function DigitalBusStrip({ name, kind, slot, color, value, onChange, level, powered }) {
   return (
     <div style={{
       width: 92, background: 'linear-gradient(180deg,#1e1e22,#151518)',
@@ -3496,7 +3499,7 @@ function DigitalBusStrip({ name, kind, color, value, onChange, level, powered })
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 4, padding: '4px 5px 0' }}>
         <F value={value} onChange={onChange} height={140} />
-        <M level={level} height={140} segments={18} />
+        <M level={level} height={140} segments={18} mkey={'bus:' + slot}/>
       </div>
     </div>
   );
@@ -3587,6 +3590,11 @@ function DigitalConsole({ state, setState, audio, faultChannelIdx, channelRefs, 
   });
   const repatch = (ci) => setState(prev => {
     const ip = (prev.inputPatch || [1, 2, 3, 4, 5]).slice();
+    // Extend to every channel before writing. The factory patch is only as
+    // long as the 8-channel list, so on the 16-channel desk ip[ci] would land
+    // past the end and leave holes for every position in between.
+    for (let k = 0; k < ip.length; k++) if (ip[k] == null) ip[k] = k + 1;
+    while (ip.length < (prev.channels || []).length) ip.push(ip.length + 1);
     ip[ci] = (ip[ci] === 0) ? (ci + 1) : 0; // re-patch to its own input, or unassign
     return { ...prev, inputPatch: ip };
   });
@@ -3637,9 +3645,15 @@ function DigitalConsole({ state, setState, audio, faultChannelIdx, channelRefs, 
     return vals.length ? Math.max(...vals) : 0;
   };
   const busStrips = [
-    { name: 'AUX 1', kind: 'WEDGE 1', color: '#46d6b0', value: state.master.aux1 != null ? state.master.aux1 : 0.75, onChange: (v) => updateMaster({ ...state.master, aux1: v }), level: mixerOn && audio.auxBus ? (audio.auxBus.wedge || 0) : 0 },
-    { name: 'AUX 2', kind: 'WEDGE 2', color: '#6aa9ff', value: state.master.aux2 != null ? state.master.aux2 : 0.75, onChange: (v) => updateMaster({ ...state.master, aux2: v }), level: mixerOn && audio.auxBus ? (audio.auxBus.wedge2 || 0) : 0 },
-    ...(state.dcas || []).map((d, di) => ({ name: 'DCA ' + (d.name || (di + 1)), kind: 'GROUP', color: di === 0 ? '#ffc93a' : '#c9a0ff', value: d.fader != null ? d.fader : 0.75, onChange: (v) => updateDca(di, v), level: busLevel(d.members) })),
+    { name: 'AUX 1', kind: 'WEDGE 1', slot: 0, color: '#46d6b0', value: state.master.aux1 != null ? state.master.aux1 : 0.75, onChange: (v) => updateMaster({ ...state.master, aux1: v }), level: mixerOn && audio.auxBus ? (audio.auxBus.wedge || 0) : 0 },
+    { name: 'AUX 2', kind: 'WEDGE 2', slot: 1, color: '#6aa9ff', value: state.master.aux2 != null ? state.master.aux2 : 0.75, onChange: (v) => updateMaster({ ...state.master, aux2: v }), level: mixerOn && audio.auxBus ? (audio.auxBus.wedge2 || 0) : 0 },
+    // Only the 16-channel desk drives AUX 3/4 (WEDGE 3/4). On the 8-channel
+    // board they are spares with no wedge behind them, so they are not shown.
+    ...(state.big16 ? [
+      { name: 'AUX 3', kind: 'WEDGE 3', slot: 2, color: 'var(--green)', value: state.master.aux3 != null ? state.master.aux3 : 0.75, onChange: (v) => updateMaster({ ...state.master, aux3: v }), level: mixerOn && audio.auxBus ? (audio.auxBus.wedge3 || 0) : 0 },
+      { name: 'AUX 4', kind: 'WEDGE 4', slot: 3, color: 'var(--amber)', value: state.master.aux4 != null ? state.master.aux4 : 0.75, onChange: (v) => updateMaster({ ...state.master, aux4: v }), level: mixerOn && audio.auxBus ? (audio.auxBus.wedge4 || 0) : 0 },
+    ] : []),
+    ...(state.dcas || []).map((d, di) => ({ name: 'DCA ' + (d.name || (di + 1)), kind: 'GROUP', slot: 4 + di, color: di === 0 ? '#ffc93a' : '#c9a0ff', value: d.fader != null ? d.fader : 0.75, onChange: (v) => updateDca(di, v), level: busLevel(d.members) })),
   ];
 
   const TABS = [['channel', 'CHANNEL'], ['groups', 'GROUPS'], ['scenes', 'SCENES'], ['patch', 'PATCH']];
@@ -3664,7 +3678,7 @@ function DigitalConsole({ state, setState, audio, faultChannelIdx, channelRefs, 
       {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderBottom: '1px solid #0a0a0c', background: 'linear-gradient(180deg,#2a2a30,#1f1f24)' }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: mixerOn ? 'var(--accent)' : '#3a1a1a', boxShadow: mixerOn ? '0 0 6px var(--accent)' : 'inset 0 0 0 1px rgba(90,32,24,0.6)', transition: 'background 0.15s, box-shadow 0.15s' }} />
-        <div className="display" style={{ fontSize: 11, color: mixerOn ? 'var(--ink-2)' : '#5a2018', letterSpacing: 1.5, fontWeight: 700, textTransform: 'uppercase' }}>AU · DX-6</div>
+        <div className="display" style={{ fontSize: 11, color: mixerOn ? 'var(--ink-2)' : '#5a2018', letterSpacing: 1.5, fontWeight: 700, textTransform: 'uppercase' }}>AU · DX-{consoleInputs(state)}</div>
         <span data-walk="mixer-power" style={{ display: 'inline-flex' }}><PowerButton on={mixerOn} width={32} height={13} onClick={onPowerToggle} /></span>
         <div className="mono" style={{ marginLeft: 'auto', fontSize: 7.5, color: 'var(--ink-3)', letterSpacing: 2, fontWeight: 700 }}>DIGITAL MIXING CONSOLE</div>
       </div>
@@ -3716,7 +3730,7 @@ function DigitalConsole({ state, setState, audio, faultChannelIdx, channelRefs, 
                   );
                 })
               : busStrips.map((b, i) => (
-                  <DigitalBusStrip key={i} name={b.name} kind={b.kind} color={b.color} value={b.value} onChange={b.onChange} level={b.level} powered={mixerOn} />
+                  <DigitalBusStrip key={i} name={b.name} kind={b.kind} slot={b.slot} color={b.color} value={b.value} onChange={b.onChange} level={b.level} powered={mixerOn} />
                 ))}
             <div style={{ width: 1, alignSelf: 'stretch', background: '#0a0a0c', boxShadow: '1px 0 0 #3a3a40' }} />
             <DigitalMainStrip master={state.master} onChange={updateMaster} onInspect={inspectTo} paLevel={masterL} paRLevel={masterR} powered={mixerOn} />
@@ -5507,14 +5521,15 @@ function ConsolePanel({ state, setState, audio, channelRefs, masterLRef, masterR
   // Guided content (walkthrough/lesson) is authored against the analog strip
   // and its spotlight anchors, so those force analog and hide the toggle
   // (surfaceLocked) — the App passes surface='analog' in that case too.
-  // The 16-channel board (state.big16) forces analog for a different reason:
-  // the big16 meter fast path skips the per-frame React render and pushes
-  // levels only to meters registered by mkey, and only the analog strip
-  // registers them (the digital meters would sit still). The digital surface
-  // also still assumes the small desk — a hardcoded DX-6 name, AUX 1/2 bus
-  // masters only, and a 5-entry inputPatch — so it is not wired for 16 inputs
-  // yet. Until that work is done, big16 stays analog; the forcing itself is in
-  // App(), on the <Chain> surface / canDigital / surfaceLocked props.
+  // The 16-channel board (state.big16) forces analog for the same reason and
+  // nothing else any more. It used to be locked for two reasons that are now
+  // handled: the big16 meter path skips the per-frame React render and drives
+  // meters only through mkeys, and the digital strips had none (so they would
+  // have sat still); and the surface assumed the small desk — a hardcoded
+  // "DX-6" header, AUX 1/2 bus masters only, and a factory patch list only as
+  // long as the 8-channel channel list. The digital meters now carry mkeys, the
+  // header reads consoleInputs, the bus layer adds WEDGE 3/4, and a re-patch
+  // extends the list before it writes.
   const sfc = (surface === 'digital' && canDigital) ? 'digital' : 'analog';
   return (
     <div style={{
@@ -11044,6 +11059,27 @@ function App() {
             const kind = mkey.slice(0, c), i = +mkey.slice(c + 1);
             if (kind === 'chlvl') return on ? (a.post[i] || 0) * 1.2 : 0;
             if (kind === 'pfl') return on ? (a.chanIn[i] || 0) : 0;
+            // dchlvl:i — the one fader meter on a digital input strip. Post-
+            // fader, except while that channel is PFL'd, when it reads pre-
+            // fader. Deliberately NOT chlvl:i (no *1.2) so it matches the
+            // strip's own React-rendered level on the 8-channel digital desk.
+            if (kind === 'dchlvl') { const solo = st.channels[i] && st.channels[i].solo; return on ? (solo ? (a.chanIn[i] || 0) : (a.post[i] || 0)) : 0; }
+            // bus:<slot> — the AUX/DCA layer masters, indexed the way
+            // DigitalConsole's busStrips build them: AUX 1-4 at 0-3, then one
+            // per DCA. Mirrors the `level` each strip computes while the
+            // throttled re-render is in charge.
+            if (kind === 'bus') {
+              if (!on) return 0;
+              const ab = a.auxBus || {};
+              if (i === 0) return ab.wedge || 0;
+              if (i === 1) return ab.wedge2 || 0;
+              if (i === 2) return ab.wedge3 || 0;
+              if (i === 3) return ab.wedge4 || 0;
+              const d = (st.dcas || [])[i - 4];
+              if (!d) return 0;
+              const vals = (d.members || []).map((m) => (a.post[m] || 0) * 1.2);
+              return vals.length ? Math.max.apply(null, vals) : 0;
+            }
           }
           return null;
         });
@@ -12797,8 +12833,8 @@ function App() {
               <window.Chain
                 state={state} setState={setState} audio={audio} fitScale={appliedScale} wedgeMargins={fbMargins} onOpenPlacement={setPlacementFor}
                 onZoomTo={onZoomTo} onZoomReset={onZoomReset} zoomActive={!!zoom}
-                surface={(level.isWalkthrough || level.isLesson || state.big16) ? 'analog' : surface} onSetSurface={setSurfacePref} canDigital={canDigital && !state.big16}
-                surfaceLocked={level.isWalkthrough || level.isLesson || !!state.big16} stageHidden={effStageHidden} stage16Open={stage16Open} briefBelow={briefBelow}
+                surface={(level.isWalkthrough || level.isLesson) ? 'analog' : surface} onSetSurface={setSurfacePref} canDigital={canDigital}
+                surfaceLocked={level.isWalkthrough || level.isLesson} stageHidden={effStageHidden} stage16Open={stage16Open} briefBelow={briefBelow}
                 sidebarContent={
                   <StableSlot levelKey={levelIdx}>
                   {solved
