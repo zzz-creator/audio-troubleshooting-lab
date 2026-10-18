@@ -2,6 +2,16 @@
  * Secure unlock system for audio-troubleshooting-lab
  * Replaces localStorage boolean with signed split cookies + session seal
  * No server-side logic, tamper detection, session-contextual
+ *
+ * ═══ FROZEN — DO NOT EXTEND (2026-10-18, council decision) ════════════════
+ * This module and its wiring in index.html are frozen: the signed-cookie
+ * unlock for ?tier=member must keep working exactly as it does. Do not
+ * revert it to localStorage, do not add fields, code paths, or APIs — the
+ * surface below (readUnlock/writeUnlock/deleteUnlock/maybeUnlockFromUrl/
+ * isUnlocked/init) is complete on purpose. Verification matrix and the
+ * migration note live in UNLOCK_README.md; scripts/check_tier_prompt.js
+ * gates the prompt flow. Changes here need Kyle's explicit go-ahead.
+ * ═════════════════════════════════════════════════════════════════════════
  */
 (function () {
   const UNLOCK_VERSION = 1;

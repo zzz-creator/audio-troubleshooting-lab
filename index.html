@@ -133,7 +133,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=244"></script>
+<script src="content.js?v=245"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -7902,16 +7902,26 @@ const SH_DONE_KEY = 'audiou-troubleshooting-lab-starthere-cta-v1';
 // a zero-backend product gets, so each link tags where the click came from.
 const JOIN_URL = 'https://audiouniversityonline.com/programs/live-sound/';
 const joinUrl = (content) => JOIN_URL + '?utm_source=troubleshooting-lab&utm_medium=app&utm_content=' + content;
-// Where the full members' version lives. A paying member who lands on the free
-// embed (a shared link, the free page) uses this to jump to what they already
-// have, instead of hitting a join wall for content they own. ?tier=member is
-// what unlocks the member content in that build.
+// ═════════ FROZEN — DO NOT EXTEND ═════════════════════════════════════════
+// This unlock block (signed cookies aul_p/aul_s + HMAC + session seal,
+// implemented in js/unlock.js) is frozen as of 2026-10-18 by council
+// decision: keep it working exactly as it does. Do NOT revert it to a
+// localStorage boolean, do NOT add cookie fields or new code paths, do NOT
+// remove the password prompt. Verification and the direct-URL matrix live in
+// UNLOCK_README.md; scripts/check_tier_prompt.js gates the ?tier=member
+// flow. Any change here needs Kyle's explicit go-ahead.
+// ══════════════════════════════════════════════════════════════════════════
+//
+// Where the full members' version lives. A paying member who lands on the
+// free version (a shared link, the free page) uses this to jump to what they
+// already have, instead of hitting a join wall for content they own.
+// ?tier=member is what unlocks the member content in that build.
 //
 // The password is a SOFT gate, not security: it lives in this file, so anyone
 // reading source can see it. It guards BOTH the link (openFullVersion) and the
 // tier itself (see TIER below), so opening ?tier=member directly still asks.
-// The unlock is remembered in localStorage and shared across tabs on this
-// origin, so clicking the link does not re-prompt on the page it opens.
+// The unlock is remembered in the signed cookies written by js/unlock.js on
+// this origin, so clicking the link does not re-prompt on the page it opens.
 const MEMBER_URL = 'https://zzz-creator.github.io/audio-troubleshooting-lab?tier=member';
 const MEMBER_PASSWORD = 'C1rcl3M3mb3r';
 
