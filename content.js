@@ -7,7 +7,7 @@
    the app's babel blocks, so keep it plain JS (arrow functions
    are fine; no JSX).
 
-     window.LEVELS          - the free Essentials tier, in order.
+     window.LEVELS          - Run the Show, the member course, in order.
      window.PRACTICE        - the paid Practice Mode scenario (endless reps).
      window.PRACTICE_FAULTS - the fault pool Practice Mode draws from.
      window.FEEDBACK_MODE   - the paid ring-out trainer (endless wedges).
