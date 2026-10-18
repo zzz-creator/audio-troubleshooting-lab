@@ -135,7 +135,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=249"></script>
+<script src="content.js?v=250"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -4112,10 +4112,16 @@ function EqBand({ value, onChange, label, ringing, accent, height = 96, width = 
         {/* fill from centre to the handle: green up (boost), red down (cut) */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: (boosting ? handleY : centerY) + 4, height: Math.abs(handleY - centerY),
           background: boosting ? 'rgba(74,222,128,0.16)' : cutting ? 'rgba(255,70,48,0.12)' : 'transparent', borderRadius: 2 }}/>
-        {/* handle */}
-        <div style={{ position: 'absolute', left: '50%', top: handleY, transform: 'translateX(-50%)', width: width, height: 8, borderRadius: 2,
-          background: ringing ? 'var(--hot)' : accent, border: '1px solid ' + (ringing ? '#b8341f' : '#0a0a0c'),
-          boxShadow: ringing ? '0 0 8px rgba(255,70,48,0.8)' : '0 1px 2px rgba(0,0,0,0.5)', animation: ringing ? 'pulse 0.9s ease-in-out infinite' : 'none' }}/>
+        {/* handle — holder keeps the centering transform; the pulse keyframes
+            set their own transform, and a CSS animation overrides inline
+            styles, so the animation must live on a child with no positioning
+            transform — otherwise the ringing grip jumps half a handle-width
+            off its track and flashes in the gap (seen 2026-10-18). */}
+        <div style={{ position: 'absolute', left: '50%', top: handleY, transform: 'translateX(-50%)', width: width, height: 8 }}>
+          <div style={{ width: '100%', height: '100%', borderRadius: 2,
+            background: ringing ? 'var(--hot)' : accent, border: '1px solid ' + (ringing ? '#b8341f' : '#0a0a0c'),
+            boxShadow: ringing ? '0 0 8px rgba(255,70,48,0.8)' : '0 1px 2px rgba(0,0,0,0.5)', animation: ringing ? 'pulse 0.9s ease-in-out infinite' : 'none' }}/>
+        </div>
       </div>
       {vertical
         ? <div className="mono" style={{ fontSize: 7, lineHeight: 1, fontWeight: 700, color: ringing ? 'var(--hot)' : 'var(--ink-2)', writingMode: 'vertical-rl', height: 26, letterSpacing: 0.5 }}>{label}</div>
