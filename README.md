@@ -36,3 +36,15 @@ Follow those two and you can drop new levels any time without resetting a single
 ## Audio
 
 The app synthesizes its sound in the browser with the Web Audio API. It loads no audio files, so there is nothing to break across hosts. Sound starts off and resumes on the first click (browser autoplay policy).
+
+## Checks
+
+There is no build step, so these are the checks. Run them before a production push, and on the pair you changed.
+
+| Check | What it catches |
+|---|---|
+| `node scripts/check_syntax.js` | Parses every `<script type="text/babel">` block in each HTML file. A dropped bracket inside a babel block does **not** show up as a console error — the page just sits on "LOADING THE LAB…" forever — so this turns a browser round trip into a one-second check. |
+| `python scripts/lint_copy.py` | The content contract on `content-staging.js`: lesson text is definitions-only, every glossary key exists, approved terminology, no control name or number silently dropped. Errors fail; warnings do not. |
+| `node scripts/check_lesson3_regression.js` | Regression gate for Run the Show 03. Drives the real engine out of the HTML and the real lesson out of the content file, and fails if the guide's four hints and the win disagree on any way the student can set the two mains. |
+
+Both node gates need `@babel/standalone`, which is not vendored: they look for `$env:BABEL_STANDALONE` (or `BABEL_STANDALONE`), then the package under `node_modules`. The regression gate also takes `HTML=<path>` and `CONTENT=<path>` to point at another engine/content pair (e.g. `staging.html` + `content-staging.js`); it exits `2` if babel or the lesson is missing, `1` if the guide and the win disagree.
