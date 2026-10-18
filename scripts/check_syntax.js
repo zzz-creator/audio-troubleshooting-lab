@@ -7,8 +7,9 @@
  * one second instead of a browser round trip.
  *
  * Usage:  node scripts/check_syntax.js [staging.html ...]
- * Needs:  @babel/standalone. Point BABEL_STANDALONE at a local copy, or it
- *         falls back to node_modules. Exit 0 clean, 1 on any parse error.
+ * Needs:  @babel/standalone. BABEL_STANDALONE overrides; otherwise the
+ *         committed copy in scripts/vendor/ is used, then node_modules.
+ *         Exit 0 clean, 1 on any parse error.
  */
 const fs = require('fs');
 const path = require('path');
@@ -21,6 +22,9 @@ if (!files.length) files.push(path.join(ROOT, 'staging.html'), path.join(ROOT, '
 let Babel;
 const candidates = [
   process.env.BABEL_STANDALONE,
+  // Committed at the same version the HTML loads from unpkg, so the gate
+  // runs offline and on a machine that has never run npm install.
+  path.join(ROOT, 'scripts', 'vendor', 'babel.min.js'),
   path.join(ROOT, 'node_modules', '@babel', 'standalone'),
 ].filter(Boolean);
 for (const c of candidates) {
@@ -28,7 +32,7 @@ for (const c of candidates) {
 }
 if (!Babel) {
   console.error('FATAL: @babel/standalone not found.');
-  console.error('Set BABEL_STANDALONE to a babel.min.js (or install @babel/standalone).');
+  console.error('Expected scripts/vendor/babel.min.js; set BABEL_STANDALONE to override.');
   process.exit(2);
 }
 

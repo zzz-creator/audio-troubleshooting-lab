@@ -13,7 +13,9 @@
  * the content file, then asserts they agree in every way a student can set the
  * two mains.
  *
- * Usage:  BABEL_STANDALONE=/path/to/babel.min.js node scripts/check_lesson3_regression.js
+ * Usage:  node scripts/check_lesson3_regression.js
+ *   BABEL_STANDALONE=<path>  override the babel copy (optional; falls back to
+ *                            scripts/vendor/babel.min.js, then node_modules)
  *   HTML=<path>     engine file to load   (default <repo>/index.html)
  *   CONTENT=<path>  content file to test  (default <repo>/content.js)
  * Exit:   0 pass, 1 the guide and the win disagree, 2 could not run.
@@ -28,13 +30,13 @@ const shown = path.relative(ROOT, CONTENT) || CONTENT;
 
 // Same lookup order as check_syntax.js so the two gates run the same way.
 let Babel = null;
-for (const cand of [process.env.BABEL_STANDALONE, '@babel/standalone', path.join(ROOT, 'node_modules', '@babel', 'standalone')]) {
+for (const cand of [process.env.BABEL_STANDALONE, path.join(ROOT, 'scripts', 'vendor', 'babel.min.js'), '@babel/standalone', path.join(ROOT, 'node_modules', '@babel', 'standalone')]) {
   if (!cand) continue;
   try { Babel = require(cand); break; } catch (e) { /* try the next source */ }
 }
 if (!Babel) {
   console.error('FATAL: @babel/standalone not found.');
-  console.error('Set BABEL_STANDALONE to a babel.min.js (or install @babel/standalone).');
+  console.error('Expected scripts/vendor/babel.min.js; set BABEL_STANDALONE to override.');
   process.exit(2);
 }
 

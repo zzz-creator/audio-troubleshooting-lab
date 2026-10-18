@@ -1,0 +1,5 @@
+# Scraper/deploy logs — never commit
+*.log
+
+# Vendored tooling is committed under scripts/vendor/; an npm install is not part of this repo
+node_modules/
