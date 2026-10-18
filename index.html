@@ -133,7 +133,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=247"></script>
+<script src="content.js?v=248"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -8008,7 +8008,12 @@ function openFullVersion(e) {
 // number in https://app.kit.com/forms/<THIS-NUMBER>/subscriptions. Blank it to
 // disable sending: the gate still works (remembers locally, lets people in),
 // it just stops posting to Kit, so the funnel never breaks.
-const KIT_FORM_ID = '9560384';
+// Blank ON PURPOSE 2026-10-18 while Kyle reworks the subscription service:
+// the gate still accepts (validation, success view, local profile save, funnel
+// events, checklist link) but nothing is subscribed anywhere. Re-enable by
+// restoring the id — it was '9560384' — or point submitToKit at the new
+// service's endpoint.
+const KIT_FORM_ID = '';
 
 // The free Soundcheck Checklist (public Circle resource). Shown on the mobile
 // success screen as the opt-in reward, so every completer gets it on the spot,

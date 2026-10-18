@@ -42,7 +42,7 @@ Free users can complete **The Gig** (a three-scenario arc ending in a show) plus
 
 Start Here order is explicit in `START_HERE` — entry lesson, then numbered wiring/fault lessons, The Gig, post-gig debrief, courses. A `.locked` or `.feat-locked` lesson in `START_HERE_INDEX` renders grayed with a lock icon but the label is untouched. **Never reorder or rename entries in `START_HERE` casually — `check_lesson3_regression.js` pins its indexes** (e.g. `START_HERE[2]` must be `lesson3`, `START_HERE[14]` must be `gig`).
 
-There is no backend: free/members-only gating is client-side only; scenario JSON is in `content.js`; email capture uses Kit embeds; join links use `?optedin=1`.
+There is no backend: free/members-only gating is client-side only; scenario JSON is in `content.js`; email capture is the Kit form, with posting **disabled 2026-10-18** while the subscription service is reworked — the gate still accepts and stores the address locally, it posts nothing; join links use `?optedin=1`.
 
 ## Audio
 
