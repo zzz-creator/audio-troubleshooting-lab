@@ -27,7 +27,7 @@ One production build, three direct links that differ only by URL query. Base URL
 | Variant | Query | Placement | Behavior |
 |---|---|---|---|
 | **Members** | `?tier=member&v=N` | Members-only Circle page (behind the access group) | Everything unlocked; no email gate |
-| **Free — cold** | `?v=N` | YouTube video descriptions + any public link | Full free funnel; email gate fires at the finale |
+| **Free — cold** | `?v=N` | YouTube video descriptions + any public link | Full free funnel; email gate fires after the first course win (moved from the finale, 2026-10-18) |
 | **Free — already opted in** | `?optedin=1&v=N` | All email sales copy (list is already opted in) + the Circle Resource Library (access to it = already on the list) | Same free funnel, email gate skipped |
 
 The three URLs differ only by query and load `content.js?v=N`; a shared link and a typed URL behave identically.

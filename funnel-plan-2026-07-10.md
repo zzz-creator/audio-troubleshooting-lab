@@ -92,6 +92,7 @@ Still to do (Kyle-owned, mostly Kit-side; not blocking the app):
 8. The Soundcheck Checklist deliverable + the Kit automations that send it. KYLE (checklist is already made; the automations live in Kit, not the app).
 
 Note: the funnel evolved past this v133 plan. Production now leads with the free "Start Here" course, gates email at its finale (Ring Out the Feedback), then a 5-rep Practice taste, then Ear Training (3 guided rounds → join-or-one-by-ear panel), then the pitch. The member build adds Run the Show, unlimited Practice, unlimited Ear Training (guided + by ear), and the 16-channel board. See git history from 2026-07-10 for the full arc.
+Correction 2026-10-18: the email gate moved again — from the Start Here finale to after the FIRST Start Here win (the council's directive in this document, line 18, shipped at last; Run the Show turned out to be member-locked, so the free funnel's first win is a Start Here lesson). The finale now carries the completion card for everyone, plus a fallback ask for a free viewer who never submitted at the first-win beat.
 
 Decision made 2026-07-10: use the existing Soundcheck Checklist as the lead-magnet asset (it's already finished).
 

@@ -133,7 +133,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=245"></script>
+<script src="content.js?v=246"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -7895,6 +7895,11 @@ const CTA_KEY = 'audiou-troubleshooting-lab-essentials-cta-v1';
 // Separate "shown once" flag for the Start Here finale, so a returning viewer
 // whose legacy CTA_KEY is already set (from the old Essentials) still gets it.
 const SH_DONE_KEY = 'audiou-troubleshooting-lab-starthere-cta-v1';
+// One-shot latch for the email ask at the FIRST Start Here win (moved from the
+// finale 2026-10-18, council). Its own key on purpose: SH_DONE_KEY stays the
+// finale latch, so browsers that already passed the old finale beat are never
+// re-asked mid-course, and the finale keeps its completion card.
+const FIRST_WIN_ASK_KEY = 'audiou-troubleshooting-lab-firstwin-ask-v1';
 
 // The membership join page. The two highest-intent moments in the app (the
 // completion card after The Gig, and the pitch overlay when a free user
@@ -8558,14 +8563,16 @@ SCENARIOS.push({
 const BAND_PARAM = IS_STAGING && (() => { try { return new URLSearchParams(window.location.search).get('band') === '1'; } catch (e) { return false; } })();
 
 // Free-tier "already opted in" flag. A follow-up email link (or a returning
-// visitor who already gave their email) carries ?optedin=1, so the finale email
-// gate is skipped — Kit already has them, don't ask twice. Works in production,
+// visitor who already gave their email) carries ?optedin=1, so the email ask
+// is skipped — Kit already has them, don't ask twice. Works in production,
 // so it is NOT staging-gated. Members never see the gate anyway.
 const OPTED_IN_PARAM = (() => { try { return new URLSearchParams(window.location.search).get('optedin') === '1'; } catch (e) { return false; } })();
 
-// Free tier now includes Run the Show (email-gated after the first win, not
-// locked), a Practice taste (budget below), and one Feedback ring-out taste.
-// The members-only depth is the Scenario Library and the Monitor World course;
+// Free tier composition: the Start Here course, the Mixer Tutorial, Free Play,
+// a Practice taste (budget below), and one Feedback ring-out taste. The email
+// ask fires after the FIRST Start Here win (moved from the finale 2026-10-18,
+// council — see the firstWinEmail effect below). Members-only depth: Run the
+// Show, the Scenario Library and the Monitor World course (this lock) —
 // everything else is either free or soft-gated by a budget in loadLevel.
 const isLocked = (sc) => !!(sc && TIER !== 'member' && (sc.isLibrary || sc.isMonitor || (sc.isLesson && !sc.isStartHere)));
 // The Feedback ring-out is a single free taste: a free viewer rings out one
@@ -8968,14 +8975,16 @@ function CompletionCta({ open, onClose, tier, onGoPractice }) {
   );
 }
 
-// Free-tier email gate, shown once at the finale of the free Start Here
-// course. This is a REQUIRED ask by design (no skip): it only ever reaches
-// the cold public audience (YouTube). The email-list distribution links the
-// Circle page whose embed carries ?optedin=1, so subscribers never see it,
-// and members are excluded by tier. Submit fires the Kit signup, then shows
-// the checklist link right on screen (instant delivery, and it covers a cold
-// visitor who happens to be subscribed already, whom Kit won't re-email)
-// with a CONTINUE button into Practice Mode.
+// Free-tier email gate, shown once after the FIRST win of the free Start Here
+// course (moved from the finale 2026-10-18, council: ask after the payoff, not
+// before it — with the finale keeping its completion card and a fallback ask).
+// This is a REQUIRED ask by design (no skip): it only ever reaches the cold
+// public audience (YouTube). The email-list distribution links carry ?optedin=1,
+// so subscribers never see it, and members are excluded by tier. Submit fires
+// the Kit signup, then shows the checklist link right on screen (instant
+// delivery, and it covers a cold visitor who happens to be subscribed already,
+// whom Kit won't re-email) with a CONTINUE button back into whatever they were
+// doing — the ask sits mid-course now, so nothing navigates away.
 function EmailGate({ open, onSubmit, onSkip }) {
   const [name, setName] = uS('');
   const [val, setVal] = uS('');
@@ -8992,8 +9001,8 @@ function EmailGate({ open, onSubmit, onSkip }) {
     setNameErr(!okName); setErr(!okEmail);
     if (!okName || !okEmail) return;
     // Fire the Kit signup right away so the lead lands even if the tab closes
-    // on the confirmation view. onSubmit (profile capture + the jump to
-    // Practice) runs on CONTINUE.
+    // on the confirmation view. onSubmit (profile capture + closing the gate;
+    // no navigation — the student stays put) runs on CONTINUE.
     submitToKit(val.trim(), name.trim());
     setSent(true);
     track('email_submit');
@@ -9010,7 +9019,7 @@ function EmailGate({ open, onSubmit, onSkip }) {
         display: 'flex', flexDirection: 'column', gap: 13,
       }}>
         <div className="mono" style={{ fontSize: 9.5, color: 'var(--green)', letterSpacing: 2, fontWeight: 700 }}>FREE · NEXT STEP</div>
-        <div className="display" style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1 }}>You're ready for Practice Mode</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1 }}>Save your first win</div>
         {sent ? (
           <>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
@@ -9025,14 +9034,14 @@ function EmailGate({ open, onSubmit, onSkip }) {
               width: '100%', padding: '11px 18px', fontSize: 12, fontWeight: 800, letterSpacing: 1,
               background: 'linear-gradient(180deg, var(--green), #2c9d52)', color: '#0a0a0c',
               border: '1px solid #2c9d52', borderRadius: 6, cursor: 'pointer',
-            }}>CONTINUE TO PRACTICE MODE →</button>
+            }}>KEEP GOING →</button>
           </>
         ) : (
           <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
           <div>In Practice Mode, you'll find and solve problems in the sound system.</div>
           <div>First, the Soundcheck Checklist, so you can run these steps at your next show. Enter your email and we'll send it over.</div>
-          <div>Then we can continue to Practice Mode and Ear Training Mode.</div>
+          <div>Next: Practice Mode and Ear Training — each has a free taste waiting.</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <input
@@ -10490,16 +10499,37 @@ function App() {
   // Which glossary term the student is hovering in the definitions panel.
   // Drives GlossaryHighlight, which washes the matching controls in amber.
   const [defHover, setDefHover] = uS(null);
-  // Finale of the free Start Here course (SH_FINALE_ID). Fires once: a free
-  // viewer who has not given an email gets the opt-in first (then the CTA);
-  // members and already-subscribed viewers get the CTA straight away.
-  const [finaleEmail, setFinaleEmail] = uS(false);
+  // The email ask, moved from the Start Here FINALE to after the FIRST Start
+  // Here win (2026-10-18 council; the 2026-07-10 plan's "gate after the first
+  // win inside Run the Show", mapped onto today's structure — Run the Show is
+  // member-locked, so the free funnel's first win is a Start Here lesson).
+  // A doorway ask reads as a toll before the payoff; after a real win it reads
+  // as "save this". One ask per browser (own latch); members and already
+  // opted-in viewers skip it entirely.
+  const [firstWinEmail, setFirstWinEmail] = uS(false);
+  uE(() => {
+    try {
+      if (window.localStorage.getItem(FIRST_WIN_ASK_KEY)) return;
+      // The old finale beat already ran in this browser — never re-ask.
+      if (window.localStorage.getItem(SH_DONE_KEY)) return;
+      if (TIER === 'member' || emailDone) return;
+      // First genuine win: a completed Start Here lesson. Practice reps and
+      // Feedback rounds don't count — the ask belongs after course progress.
+      if (!SCENARIOS.some((s) => s.isStartHere && completed[s.id])) return;
+      window.localStorage.setItem(FIRST_WIN_ASK_KEY, '1');
+      setFirstWinEmail(true);
+    } catch (e) {}
+  }, [completed, emailDone]);
+  // Finale of the free Start Here course (SH_FINALE_ID), unchanged in behavior:
+  // the completion card for members and subscribed viewers, plus the fallback
+  // ask for a free viewer who never submitted at the first-win beat (they
+  // closed the tab on it) — required still means required: there is no skip.
   uE(() => {
     try {
       if (window.localStorage.getItem(SH_DONE_KEY)) return;
       if (!completed[SH_FINALE_ID]) return;
       window.localStorage.setItem(SH_DONE_KEY, '1');
-      if (TIER !== 'member' && !emailDone) setFinaleEmail(true);
+      if (TIER !== 'member' && !emailDone) setFirstWinEmail(true);
       else setCtaOpen(true);
     } catch (e) {}
   }, [completed, emailDone]);
@@ -12845,15 +12875,19 @@ function App() {
       <GlossaryHighlight term={(catalogOpen || pitchFor || ctaOpen) ? null : defHover}/>
       <CompletionCta open={ctaOpen} onClose={() => setCtaOpen(false)} tier={TIER}
         onGoPractice={() => { setCtaOpen(false); loadLevel(window.LEVELS.length); }}/>
-      {/* Free-tier email opt-in. Fires at the FINALE of the free Start Here
-          course, the moment of peak value. Required by design (no skip UI):
-          only the cold public audience reaches it. Email-list traffic lands
-          on the ?optedin=1 embed and members are excluded by tier, so
-          neither ever sees it. onSkip is dormant, nothing renders it. */}
+      {/* Free-tier email opt-in. Fires after the FIRST Start Here win (moved
+          from the finale 2026-10-18, council — a win is the moment of value;
+          a doorway was a toll). Required by design (no skip UI): only the cold
+          public audience reaches it. Email-list traffic lands on the
+          ?optedin=1 links and members are excluded by tier, so neither ever
+          sees it. onSubmit does NOT navigate: the ask sits mid-course now, so
+          the student stays on the lesson they just won (at the finale
+          fallback, the completion card opens instead). onSkip is dormant,
+          nothing renders it. */}
       <EmailGate
-        open={finaleEmail && TIER !== 'member' && !emailDone && !tourOpen}
-        onSubmit={(email, name) => { captureEmail(email, name); setFinaleEmail(false); loadLevel(window.LEVELS.length); }}
-        onSkip={() => { track('email_skip'); setFinaleEmail(false); setCtaOpen(true); }}/>
+        open={firstWinEmail && TIER !== 'member' && !emailDone && !tourOpen}
+        onSubmit={(email, name) => { captureEmail(email, name); setFirstWinEmail(false); if (completed[SH_FINALE_ID]) setCtaOpen(true); }}
+        onSkip={() => { track('email_skip'); setFirstWinEmail(false); setCtaOpen(true); }}/>
       {/* The welcome chooser is retired: a fresh free visitor gets the "Know
           your console" walkthrough, and everyone else lands with the mode menu
           open (startOpen on TopBar), so the menu is the single universal entry.
