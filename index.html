@@ -133,7 +133,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
-<script src="content.js?v=246"></script>
+<script src="content.js?v=247"></script>
 </head>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
@@ -8921,10 +8921,12 @@ function TourOverlay({ open, onClose }) {
   );
 }
 
-// Essentials completion card. Shows once, when the ninth lesson is done.
-// The free tier gets the membership pointer; members get sent straight to
-// Practice Mode. No URL on purpose — the page this app is embedded in
-// carries the join link.
+// Start Here completion card. Opens from the SolvedCard's ALL LEVELS
+// COMPLETE button at the finale win (2026-10-18: click-to-open so it never
+// auto-fires over an open Monitor EQ window from the ring-out). The free
+// tier gets the membership pointer; members get sent straight to Practice
+// Mode. No URL on purpose — the page this app is embedded in carries the
+// join link.
 function CompletionCta({ open, onClose, tier, onGoPractice }) {
   if (!open) return null;
   return (
@@ -10491,10 +10493,11 @@ function App() {
     setTourOpen(false);
   };
 
-  // Essentials completion card: fires once, the moment The Gig (lesson 9,
-  // the final exam) is passed. That's the emotional peak of the free arc;
-  // Power-Down (lesson 10) is a wind-down the student can still finish after.
-  // Stable ids are append-only, so completed[9] is The Gig for good.
+  // The Start Here completion card. Opened by openCompletion (the SolvedCard
+  // ALL LEVELS COMPLETE button at the finale win) — click-driven since
+  // 2026-10-18: the old auto-fire at the win could land over an open Monitor
+  // EQ window and the two stacked. Reopenable from the same button after a
+  // dismiss; SH_DONE_KEY no longer gates showing it, only the legacy beat.
   const [ctaOpen, setCtaOpen] = uS(false);
   // Which glossary term the student is hovering in the definitions panel.
   // Drives GlossaryHighlight, which washes the matching controls in amber.
@@ -10517,22 +10520,41 @@ function App() {
       // Feedback rounds don't count — the ask belongs after course progress.
       if (!SCENARIOS.some((s) => s.isStartHere && completed[s.id])) return;
       window.localStorage.setItem(FIRST_WIN_ASK_KEY, '1');
+      // The ask is a fullscreen overlay: clear the Monitor EQ window first so
+      // the two never stack — the belt for a first win that lands while the
+      // EQ panel is up (e.g. a viewer who jumps straight to the ring-out
+      // lesson, or who opened EQ by hand).
+      setEqPanelOpen(false);
       setFirstWinEmail(true);
     } catch (e) {}
   }, [completed, emailDone]);
-  // Finale of the free Start Here course (SH_FINALE_ID), unchanged in behavior:
-  // the completion card for members and subscribed viewers, plus the fallback
-  // ask for a free viewer who never submitted at the first-win beat (they
-  // closed the tab on it) — required still means required: there is no skip.
+  // Open the Start Here finale beat: the required fallback ask for a free
+  // viewer who never submitted at the first-win beat (they closed the tab on
+  // it) — required still means required: there is no skip — otherwise the
+  // completion card. Click-driven on purpose (2026-10-18): the old auto-fire
+  // at the win could land while the Monitor EQ window was still up from the
+  // ring-out and the two stacked. The EQ overlay covers the sidebar, so the
+  // SolvedCard button that calls this is unclickable until the EQ window is
+  // closed; setEqPanelOpen(false) here is the belt for any other path.
+  const openCompletion = () => {
+    setEqPanelOpen(false);
+    if (TIER !== 'member' && !emailDone) setFirstWinEmail(true);
+    else setCtaOpen(true);
+  };
+  // Finale of the free Start Here course (SH_FINALE_ID): the win latches the
+  // beat here, and openCompletion above drives what it opens — the card or
+  // the fallback ask — from the SolvedCard's ALL LEVELS COMPLETE button
+  // (2026-10-18 clash fix; they no longer auto-open). Latching still does its
+  // original job: SH_DONE_KEY marks the old finale beat, so a legacy browser
+  // that already passed it is never re-asked mid-course by the first-win
+  // effect above.
   uE(() => {
     try {
       if (window.localStorage.getItem(SH_DONE_KEY)) return;
       if (!completed[SH_FINALE_ID]) return;
       window.localStorage.setItem(SH_DONE_KEY, '1');
-      if (TIER !== 'member' && !emailDone) setFirstWinEmail(true);
-      else setCtaOpen(true);
     } catch (e) {}
-  }, [completed, emailDone]);
+  }, [completed]);
 
   // The active scenario. A Practice rep can carry a per-rep GOAL (its win
   // conditions + prompt text) in PRACTICE_LAST.winSpec — that's how Practice
@@ -13041,6 +13063,7 @@ function App() {
                         onGoEssentials={(level.isCustom && TIER !== 'member') ? () => { loadLevel(WALKTHROUGH_INDEX, undefined, true); } : null}
                         practiceFreeLeft={(level.isPractice && TIER !== 'member') ? freeRepsLeft : null}
                         onCopyRepLink={level.isPractice ? copyRepLink : null} repCopied={repCopied}
+                        onOpenCompletion={level.id === SH_FINALE_ID ? openCompletion : null}
                         rank={rank} rankClean={rankClean} rankUp={rankUp} coverage={coverage} streak={streak}
                         liveShow={TIER === 'member' && liveShow} dropouts={dropouts}
                         debrief={(level.isChallenge && !level.isCustom && !level.isLibrary) ? {
@@ -13957,7 +13980,7 @@ function BriefCard({ level, conditions, audio, phantomPop, onReset, pflClear, pf
   );
 }
 
-function SolvedCard({ level, onNext, hasNext, feedbackLabel, feedbackCaption, feedbackGuidedDone, coaching, debrief, onPracticeAgain, onGoFeedback, onGoEssentials, practiceFreeLeft, onCopyRepLink, repCopied, rank, rankClean, rankUp, liveShow, dropouts, coverage, streak, courseDone }) {
+function SolvedCard({ level, onNext, hasNext, feedbackLabel, feedbackCaption, feedbackGuidedDone, coaching, debrief, onPracticeAgain, onGoFeedback, onGoEssentials, practiceFreeLeft, onCopyRepLink, repCopied, rank, rankClean, rankUp, liveShow, dropouts, coverage, streak, courseDone, onOpenCompletion }) {
   return (
     <div style={{
       background: 'linear-gradient(180deg,#0e2415 0%, #0e1a14 100%)',
@@ -14148,6 +14171,17 @@ function SolvedCard({ level, onNext, hasNext, feedbackLabel, feedbackCaption, fe
               ✓ YOU PASSED THE {courseDone.toUpperCase()} COURSE
             </div>
           )}
+          {/* Start Here finale: the completion card's opener (2026-10-18 —
+              replaced the auto-fire at the win, which could stack over an
+              open Monitor EQ window). The EQ overlay covers this sidebar, so
+              the button is unreachable until the EQ window is closed. */}
+          {onOpenCompletion && (
+            <button onClick={onOpenCompletion} className="mono ui-no-select" style={{
+              width: '100%', padding: '6px 10px', fontSize: 10, fontWeight: 700, letterSpacing: 1,
+              background: '#0a0a0c', color: 'var(--accent)', border: '1px solid var(--accent)',
+              borderRadius: 3, textAlign: 'center', cursor: 'pointer',
+            }}>ALL LEVELS COMPLETE →</button>
+          )}
           <button onClick={onNext} className="mono ui-no-select" style={{
             width: '100%', padding: '6px 10px', fontSize: 10, fontWeight: 700, letterSpacing: 1,
             background: 'linear-gradient(180deg, var(--green), #2c9d52)', color: '#0a0a0c',
@@ -14161,7 +14195,20 @@ function SolvedCard({ level, onNext, hasNext, feedbackLabel, feedbackCaption, fe
               ✓ YOU PASSED THE {courseDone.toUpperCase()} COURSE
             </div>
           )}
-          <div className="mono" style={{ width: '100%', padding: '6px 10px', fontSize: 10, fontWeight: 700, letterSpacing: 1, background: '#0a0a0c', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 3, textAlign: 'center' }}>ALL LEVELS COMPLETE</div>
+          {/* The badge is now a button when the finale carries the completion
+              card (onOpenCompletion — same geometry as the old badge, so the
+              row looks unchanged; the arrow is the affordance). Non-finale
+              !hasNext solves (a shared link played past the lock) keep the
+              plain badge: there is no completion card for them to open. */}
+          {onOpenCompletion ? (
+            <button onClick={onOpenCompletion} className="mono ui-no-select" style={{
+              width: '100%', padding: '6px 10px', fontSize: 10, fontWeight: 700, letterSpacing: 1,
+              background: '#0a0a0c', color: 'var(--accent)', border: '1px solid var(--accent)',
+              borderRadius: 3, textAlign: 'center', cursor: 'pointer',
+            }}>ALL LEVELS COMPLETE →</button>
+          ) : (
+            <div className="mono" style={{ width: '100%', padding: '6px 10px', fontSize: 10, fontWeight: 700, letterSpacing: 1, background: '#0a0a0c', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 3, textAlign: 'center' }}>ALL LEVELS COMPLETE</div>
+          )}
         </>
       )}
       {onCopyRepLink && (
