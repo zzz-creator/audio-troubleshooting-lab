@@ -1,6 +1,6 @@
 # Troubleshooting Lab
 
-An interactive mixing-console training simulator for [Audio University](https://www.youtube.com/@AudioUniversity). Single-page app, no build step (React + Babel via CDN). Free Essentials tier acts as the lead magnet; paid challenge scenarios drip in over time for members.
+An interactive mixing-console training simulator for Audio University. Single-page app, no build step (React + Babel via CDN). Free Essentials tier acts as the lead magnet; paid challenge scenarios drip in over time for members.
 
 ## Files
 
