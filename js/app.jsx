@@ -5271,7 +5271,7 @@ function App() {
         onSelectDifficulty={(TIER === 'member' && !repShareFree) ? selectDifficulty : null}
         onPracticeFaults={(TIER === 'member' && !repShareFree) ? practiceAtFaults : null} onPracticeLive={null}
         startOpen={!shouldWalk && !SCENARIO_PARAM && !REP_PARAM && !BAND_PARAM && !tourOpen}
-        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)} onTranscript={() => setTranscriptOpen(true)} onVenuePacks={() => setVenuePacksOpen(true)} onCommunity={() => setCommunityOpen(true)}
+        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)} onTranscript={() => setTranscriptOpen(true)} onVenuePacks={() => setVenuePacksOpen(true)} onCommunity={() => setCommunityOpen(true)} onDrillWeak={practiceWhatNeedsIt}
       />
 
       <IoListPanel open={ioListOpen} onClose={() => setIoListOpen(false)} state={state}/>
@@ -5948,7 +5948,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
   );
 }
 
-function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript, onVenuePacks, onCommunity }) {
+function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript, onVenuePacks, onCommunity, onDrillWeak }) {
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once

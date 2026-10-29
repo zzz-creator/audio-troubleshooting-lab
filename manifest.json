@@ -1,0 +1,9 @@
+{
+  "name": "Troubleshooting Lab",
+  "short_name": "TroubleshootLab",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0e0e10",
+  "theme_color": "#ffc93a",
+  "icons": []
+}

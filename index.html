@@ -136,7 +136,12 @@
 <!-- Bump the ?v= number whenever content.js changes so browsers fetch the new
      scenarios immediately instead of a cached copy. -->
 <script src="content.js?v=250"></script>
-</head>
+<link rel="manifest" href="manifest.json?v=1" />
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+  }
+</script>
 <body>
 <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;color:#8a8a92;background:#08080a;font-size:12px;letter-spacing:1px">LOADING THE LAB…</div></div>
 <noscript><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;font-family:system-ui,sans-serif;color:#c8c8d0;background:#08080a;padding:24px;line-height:1.5">This trainer needs JavaScript turned on. Enable it and reload to start the lab.</div></noscript>
