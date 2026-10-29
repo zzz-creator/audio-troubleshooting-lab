@@ -3351,6 +3351,7 @@ function App() {
     if (sd && sd.date === todayStr()) {
       const outcome = (clipsStable && clipsStable.length) ? 'survived_degraded' : 'survived';
       track('show_day_result', { date: sd.date, outcome: outcome });
+               setShowDayResult({ outcome: outcome, date: sd.date });
       try { localStorage.setItem(showDayStorageKey, JSON.stringify({ date: sd.date, started: sd.started, finished: Date.now(), outcome: outcome })); } catch (e) {}
     }
   } catch (e) {}
@@ -3410,6 +3411,10 @@ function App() {
   // flash here just gives an immediate "you broke something" beat.
   const [popFlash, setPopFlash] = uS(false);
   const [survivedFlash, setSurvivedFlash] = uS(false);
+  const [showDayResult, setShowDayResult] = uS(null);
+  const [byoOpen, setByoOpen] = uS(false);
+  const [byoText, setByoText] = uS('');
+  const [byoMatch, setByoMatch] = uS(null);
   uE(() => {
     if (!state.phantomPop) return;
     setPopFlash(true);
@@ -5253,7 +5258,7 @@ function App() {
         onSelectDifficulty={(TIER === 'member' && !repShareFree) ? selectDifficulty : null}
         onPracticeFaults={(TIER === 'member' && !repShareFree) ? practiceAtFaults : null} onPracticeLive={null}
         startOpen={!shouldWalk && !SCENARIO_PARAM && !REP_PARAM && !BAND_PARAM && !tourOpen}
-        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay}
+        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)}
       />
 
       <IoListPanel open={ioListOpen} onClose={() => setIoListOpen(false)} state={state}/>
@@ -5633,6 +5638,32 @@ function App() {
           <span className="mono" style={{ fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', opacity: 0.9 }}>first win — milestone logged</span>
         </div>
       )}
+      {showDayResult && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 420, width: '90%' }}>
+            <div className="display" style={{ fontSize: 20, fontWeight: 800, color: showDayResult.outcome === 'survived' ? 'var(--green)' : 'var(--amber)', marginBottom: 8 }}>{showDayResult.outcome === 'survived' ? 'SHOW SURVIVED' : 'SHOW SURVIVED (DEGRADED)'}</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Outcome: {showDayResult.outcome}. Post-mortem: the show held, but clipping/distortion was present during the run.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setShowDayResult(null)} style={{ flex: 1, padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
+              <button onClick={() => { const t = 'Show Day ' + showDayResult.date + '\nOutcome: ' + showDayResult.outcome + '\nLevel: ' + (level && level.title) + '\n'; const b = new Blob([t], { type: 'text/plain' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'show-day-postmortem.txt'; a.click(); URL.revokeObjectURL(u); }} style={{ flex: 1, padding: '8px 12px', background: 'var(--accent)', border: 'none', color: '#0a0a0c', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Export post-mortem</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {byoOpen && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 460, width: '90%' }}>
+            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Bring your own problem</div>
+            <textarea value={byoText} onChange={(e) => setByoText(e.target.value)} placeholder="Describe the symptom, the rig, what you tried..." style={{ width: '100%', height: 90, background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, padding: 8, fontSize: 13, marginBottom: 8 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setByoOpen(false)} style={{ flex: 1, padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
+              <button onClick={() => { const words = byoText.toLowerCase().split(/\s+/); const idx = SCENARIOS.findIndex((s) => words.some((w) => (s.title || '').toLowerCase().includes(w))); const pick = idx >= 0 ? idx : Math.floor(Math.random() * SCENARIOS.length); setByoMatch(SCENARIOS[pick] && SCENARIOS[pick].title); loadLevel(pick); try { track('byo_problem', { matched: SCENARIOS[pick] && SCENARIOS[pick].id }); } catch (e) {} setByoOpen(false); }} style={{ flex: 1, padding: '8px 12px', background: 'var(--accent)', border: 'none', color: '#0a0a0c', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Generate scenario</button>
+            </div>
+            {byoMatch && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-3)' }}>Matched: {byoMatch}</div>}
+          </div>
+        </div>
+      )}
+
     </div>
    </window.DefHoverContext.Provider>
   );
@@ -5869,7 +5900,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
   );
 }
 
-function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay }) {
+function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo }) {
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once
