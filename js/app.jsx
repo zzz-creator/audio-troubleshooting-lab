@@ -3415,6 +3415,7 @@ function App() {
   const [byoOpen, setByoOpen] = uS(false);
   const [byoText, setByoText] = uS('');
   const [byoMatch, setByoMatch] = uS(null);
+  const [transcriptOpen, setTranscriptOpen] = uS(false);
   uE(() => {
     if (!state.phantomPop) return;
     setPopFlash(true);
@@ -4699,6 +4700,16 @@ function App() {
     loadLevel(idx);
   };
   if (typeof window !== 'undefined') window.startShowDay = startShowDay;
+  const exportTranscript = () => {
+    const p = profileRef.current || {};
+    const ledger = p.ledger || {};
+    const lines = ['Audio University Troubleshooting Lab - Competency Transcript', 'Generated: ' + new Date().toISOString(), '', 'Streak: ' + (p.streak || 0) + ' (best ' + (p.streakBest || 0) + ')', 'Practice reps solved: ' + (p.reps || 0), 'Clean reps: ' + (p.practiceClean || 0), '', 'Mastery ledger (fault -> {solved, clean, last}):'];
+    for (const k in ledger) lines.push('  ' + k + ': ' + JSON.stringify(ledger[k]));
+    lines.push('', 'Save code: ' + (p.saveCode || '(none)'));
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = 'competency-transcript.txt'; a.click(); URL.revokeObjectURL(u);
+  };
+  if (typeof window !== 'undefined') window.exportTranscript = exportTranscript;
 
   // Practice what needs it: drill the fault types that need practice, steering
   // the auto-generator at the member's rusty faults, and roll a fresh rep. The
@@ -5258,7 +5269,7 @@ function App() {
         onSelectDifficulty={(TIER === 'member' && !repShareFree) ? selectDifficulty : null}
         onPracticeFaults={(TIER === 'member' && !repShareFree) ? practiceAtFaults : null} onPracticeLive={null}
         startOpen={!shouldWalk && !SCENARIO_PARAM && !REP_PARAM && !BAND_PARAM && !tourOpen}
-        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)}
+        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)} onTranscript={() => setTranscriptOpen(true)}
       />
 
       <IoListPanel open={ioListOpen} onClose={() => setIoListOpen(false)} state={state}/>
@@ -5663,6 +5674,18 @@ function App() {
           </div>
         </div>
       )}
+      {transcriptOpen && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 420, width: '90%' }}>
+            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Competency transcript</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Exports a dated, skill-tagged record of your solved reps and mastery ledger. Share it with a production manager or attach to a resume.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setTranscriptOpen(false)} style={{ flex: 1, padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
+              <button onClick={() => { exportTranscript(); setTranscriptOpen(false); }} style={{ flex: 1, padding: '8px 12px', background: 'var(--accent)', border: 'none', color: '#0a0a0c', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Export</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
    </window.DefHoverContext.Provider>
@@ -5900,7 +5923,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
   );
 }
 
-function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo }) {
+function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript }) {
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once
