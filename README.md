@@ -6,8 +6,8 @@ An interactive mixing-console training simulator for Audio University. Single-pa
 
 One pair — the whole app:
 
-- **`index.html`** — engine, UI, synthesized audio, and the `?tier=member` unlock flow. It is the HTML source of truth.
-- **`content.js`** — the scenario library (`window.LEVELS`, `window.START_HERE`, `window.FEEDBACK_MODE`, etc.). **Edit this file when adding or changing levels.** The app calls `computeAudio(state)` in `index.html` for level state.
+- **`index.html`** — HTML shell + styles. The engine/UI/audio now live in `js/*.jsx` (below), loaded via Babel Standalone. It is the HTML source of truth.
+- **`content.js`** — the scenario library (`window.LEVELS`, `window.START_HERE`, `window.FEEDBACK_MODE`, etc.). **Edit this file when adding or changing levels.** The app calls `computeAudio(state)` (now in `js/app.jsx`) for level state.
 - **`js/unlock.js`** — the signed-cookie unlock module behind the member flow. Frozen; see `UNLOCK_README.md` before touching it or the unlock wiring in `index.html`.
 - **`scripts/`** — the checks and the release command (below).
 - The app synthesizes audio directly from level state (no audio files); everything is computed from the JSON in `content.js` via Web Audio API.
