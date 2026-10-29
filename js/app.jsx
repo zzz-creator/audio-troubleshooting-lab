@@ -5949,6 +5949,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
 }
 
 function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript, onVenuePacks, onCommunity, onDrillWeak }) {
+  const [moreOpen, setMoreOpen] = uS(false);
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once
@@ -6107,12 +6108,21 @@ function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onR
         {onOpenIoList && (
           <button data-walk="iolist" onClick={onOpenIoList} className="mono ui-no-select" title="The input list: what's plugged into each channel, and where the outputs go" style={{ ...navBtn, padding: '6px 12px' }}>INPUT LIST</button>
         )}
-         {onShowDay && <button onClick={onShowDay} className="mono ui-no-select" title="Run tonight's show" style={{ ...navBtn, padding: '6px 12px', background: 'rgba(255,201,58,0.12)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>SHOW DAY</button>}
-         {onByo && <button onClick={onByo} className="mono ui-no-select" title="Bring your own problem" style={{ ...navBtn, padding: '6px 12px' }}>BYO</button>}
-         {onTranscript && <button onClick={onTranscript} className="mono ui-no-select" title="Export competency transcript" style={{ ...navBtn, padding: '6px 12px' }}>TRANSCRIPT</button>}
-         {onVenuePacks && <button onClick={onVenuePacks} className="mono ui-no-select" title="Real-venue scenario packs" style={{ ...navBtn, padding: '6px 12px' }}>VENUE PACKS</button>}
-         {onCommunity && <button onClick={onCommunity} className="mono ui-no-select" title="Community scenario library" style={{ ...navBtn, padding: '6px 12px' }}>COMMUNITY</button>}
-         {onDrillWeak && <button onClick={onDrillWeak} className="mono ui-no-select" title="Drill your weak fault types" style={{ ...navBtn, padding: '6px 12px' }}>DRILL WEAK</button>}
+         {(onShowDay || onByo || onTranscript || onVenuePacks || onCommunity || onDrillWeak) && (
+           <div style={{ position: 'relative', display: 'inline-block' }}>
+             <button onClick={() => setMoreOpen((v) => !v)} className="mono ui-no-select" title="More tools" style={{ ...navBtn, padding: '6px 12px' }}>MORE {moreOpen ? '\u25b2' : '\u25bc'}</button>
+             {moreOpen && (
+               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: 6, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 200, minWidth: 160 }}>
+                 {onShowDay && <button onClick={() => { setMoreOpen(false); onShowDay(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>SHOW DAY</button>}
+                 {onByo && <button onClick={() => { setMoreOpen(false); onByo(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>BYO</button>}
+                 {onTranscript && <button onClick={() => { setMoreOpen(false); onTranscript(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>TRANSCRIPT</button>}
+                 {onVenuePacks && <button onClick={() => { setMoreOpen(false); onVenuePacks(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>VENUE PACKS</button>}
+                 {onCommunity && <button onClick={() => { setMoreOpen(false); onCommunity(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>COMMUNITY</button>}
+                 {onDrillWeak && <button onClick={() => { setMoreOpen(false); onDrillWeak(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>DRILL WEAK</button>}
+               </div>
+             )}
+           </div>
+         )}
          {onToggleStage && (
            <button onClick={onToggleStage} data-walk="stage-toggle" className="mono ui-no-select" title={big16 ? (stage16Open ? 'Back to the mixer' : 'Open the stage: sub-snakes, inputs, and the signal path') : (stageHidden ? 'Show the stage: sources, cables, and speakers' : 'Hide the stage to give the console the whole screen')} style={{ ...navBtn, padding: '6px 12px' }}>{big16 ? (stage16Open ? 'MIXER' : 'STAGE') : (stageHidden ? 'SHOW STAGE' : 'HIDE STAGE')}</button>
         )}
