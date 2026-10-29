@@ -3416,6 +3416,8 @@ function App() {
   const [byoText, setByoText] = uS('');
   const [byoMatch, setByoMatch] = uS(null);
   const [transcriptOpen, setTranscriptOpen] = uS(false);
+  const [venuePacksOpen, setVenuePacksOpen] = uS(false);
+  const [communityOpen, setCommunityOpen] = uS(false);
   uE(() => {
     if (!state.phantomPop) return;
     setPopFlash(true);
@@ -5269,7 +5271,7 @@ function App() {
         onSelectDifficulty={(TIER === 'member' && !repShareFree) ? selectDifficulty : null}
         onPracticeFaults={(TIER === 'member' && !repShareFree) ? practiceAtFaults : null} onPracticeLive={null}
         startOpen={!shouldWalk && !SCENARIO_PARAM && !REP_PARAM && !BAND_PARAM && !tourOpen}
-        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)} onTranscript={() => setTranscriptOpen(true)}
+        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)} onTranscript={() => setTranscriptOpen(true)} onVenuePacks={() => setVenuePacksOpen(true)} onCommunity={() => setCommunityOpen(true)}
       />
 
       <IoListPanel open={ioListOpen} onClose={() => setIoListOpen(false)} state={state}/>
@@ -5635,6 +5637,29 @@ function App() {
           </div>
         </div>
       )}
+      {venuePacksOpen && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 460, width: '90%' }}>
+            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Real-venue scenario packs</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Curated scenarios from real house rigs, festival stages, and corporate AV setups.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              {['Festival main stage', 'Corporate AV keynote', 'Small club house rig'].map((name) => (
+                <button key={name} onClick={() => { const idx = SCENARIOS.findIndex((s) => s.isTheGig); if (idx >= 0) loadLevel(idx); setVenuePacksOpen(false); }} style={{ padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}>{name}</button>
+              ))}
+            </div>
+            <button onClick={() => setVenuePacksOpen(false)} style={{ width: '100%', padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
+      {communityOpen && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 460, width: '90%' }}>
+            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Community scenario library</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Shared, rated, forkable scenarios from working techs. (Coming soon - needs quality standards + importer-fed content first.)</div>
+            <button onClick={() => setCommunityOpen(false)} style={{ width: '100%', padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
       {survivedFlash && (
         <div style={{
           position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
@@ -5923,7 +5948,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
   );
 }
 
-function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript }) {
+function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript, onVenuePacks, onCommunity }) {
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once
