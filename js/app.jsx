@@ -35,36 +35,6 @@ if (typeof window !== 'undefined') {
   window.__funnelDump = function () {
     try { const b = JSON.parse(localStorage.getItem(FUNNEL_KEY)); return Array.isArray(b) ? b : []; } catch (e) { return []; }
   };
-  // Phase 0 metric: Day-7 activation = % of browsers whose first start_here_progress
-  // event is followed (within 7 days) by >=3 distinct Essentials lessons solved.
-  // Show Day completion will be added once Show Day ships (Phase 1b).
-  window.__day7Activation = function () {
-    try {
-      const b = JSON.parse(localStorage.getItem(FUNNEL_KEY));
-      if (!Array.isArray(b)) return { total: 0, activated: 0, rate: 0 };
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
-      const byFirst = {};
-      for (const ev of b) {
-        if (ev.stage !== 'start_here_progress') continue;
-        if (byFirst[ev.t] == null) byFirst[ev.t] = new Set();
-        byFirst[ev.t].add(ev.id);
-      }
-      const firsts = Object.keys(byFirst).map(Number).sort((a, c) => a - c);
-      let total = 0, activated = 0;
-      for (const first of firsts) {
-        total++;
-        const distinct = new Set();
-        for (const ev of b) {
-          if (ev.stage !== 'start_here_progress') continue;
-          if (ev.t - first > sevenDays) continue;
-          if (ev.t < first) continue;
-          distinct.add(ev.id);
-        }
-        if (distinct.size >= 3) activated++;
-      }
-      return { total, activated, rate: total ? activated / total : 0 };
-    } catch (e) { return { total: 0, activated: 0, rate: 0 }; }
-  };
   window.__funnelClear = function () { try { localStorage.removeItem(FUNNEL_KEY); } catch (e) {} };
 }
 
@@ -3346,35 +3316,7 @@ function App() {
       if (!stableRef.current) {
         stableRef.current = setTimeout(() => {
           setSolved(true);
-  try {
-    const sd = JSON.parse(localStorage.getItem(showDayStorageKey) || 'null');
-    if (sd && sd.date === todayStr()) {
-      const outcome = (clipsStable && clipsStable.length) ? 'survived_degraded' : 'survived';
-      track('show_day_result', { date: sd.date, outcome: outcome });
-               setShowDayResult({ outcome: outcome, date: sd.date });
-      try { localStorage.setItem(showDayStorageKey, JSON.stringify({ date: sd.date, started: sd.started, finished: Date.now(), outcome: outcome })); } catch (e) {}
-    }
-  } catch (e) {}
-           if (!level.isPractice && !level.isFeedbackMode) { setSurvivedFlash(true); setTimeout(() => setSurvivedFlash(false), 2400); }
           bumpStreak(); // any finished session (lesson, rep, ring-out) counts today
-           // Council 2026-10-29 "one thing to do first": audible success cue on
-           // the first START HERE win so the milestone is felt, not just metered.
-           if (audioOn && !level.isPractice && !level.isFeedbackMode) {
-             try {
-               const ctx = ctxRef.current;
-               if (ctx && ctx.state === 'running') {
-                 const t0 = ctx.currentTime;
-                 const o = ctx.createOscillator(); o.type = 'triangle';
-                 o.frequency.setValueAtTime(660, t0);
-                 o.frequency.exponentialRampToValueAtTime(880, t0 + 0.12);
-                 const g = ctx.createGain();
-                 g.gain.setValueAtTime(0.18, t0);
-                 g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
-                 o.connect(g); g.connect(ctx.destination);
-                 o.start(t0); o.stop(t0 + 0.24);
-               }
-             } catch (_) {}
-           }
           setCompleted(c => ({ ...c, [level.id]: true }));
           // Funnel: lessons and gig challenges are Start Here progress;
           // practice and ear-training completions report under their own
@@ -3410,14 +3352,6 @@ function App() {
   // warning chip (in BriefCard) sticks around until the next reset; the
   // flash here just gives an immediate "you broke something" beat.
   const [popFlash, setPopFlash] = uS(false);
-  const [survivedFlash, setSurvivedFlash] = uS(false);
-  const [showDayResult, setShowDayResult] = uS(null);
-  const [byoOpen, setByoOpen] = uS(false);
-  const [byoText, setByoText] = uS('');
-  const [byoMatch, setByoMatch] = uS(null);
-  const [transcriptOpen, setTranscriptOpen] = uS(false);
-  const [venuePacksOpen, setVenuePacksOpen] = uS(false);
-  const [communityOpen, setCommunityOpen] = uS(false);
   uE(() => {
     if (!state.phantomPop) return;
     setPopFlash(true);
@@ -4691,28 +4625,6 @@ function App() {
     setTrackPick(code && sc ? { id: sc.id, code } : null);
     loadLevel(i);
   };
-  // SHOW DAY (Phase 1b, v1)
-  const todayStr = () => new Date().toISOString().slice(0,10);
-  const showDayStorageKey = 'audiou-lab-showday-v1';
-  const startShowDay = () => {
-    const idx = SCENARIOS.findIndex((s) => s.isTheGig);
-    if (idx < 0) return;
-    try { track('show_day_start', { date: todayStr() }); } catch (e) {}
-    try { localStorage.setItem(showDayStorageKey, JSON.stringify({ date: todayStr(), started: Date.now() })); } catch (e) {}
-    loadLevel(idx);
-  };
-  if (typeof window !== 'undefined') window.startShowDay = startShowDay;
-  const exportTranscript = () => {
-    const p = profileRef.current || {};
-    const ledger = p.ledger || {};
-    const lines = ['Audio University Troubleshooting Lab - Competency Transcript', 'Generated: ' + new Date().toISOString(), '', 'Streak: ' + (p.streak || 0) + ' (best ' + (p.streakBest || 0) + ')', 'Practice reps solved: ' + (p.reps || 0), 'Clean reps: ' + (p.practiceClean || 0), '', 'Mastery ledger (fault -> {solved, clean, last}):'];
-    for (const k in ledger) lines.push('  ' + k + ': ' + JSON.stringify(ledger[k]));
-    lines.push('', 'Save code: ' + (p.saveCode || '(none)'));
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-    const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = 'competency-transcript.txt'; a.click(); URL.revokeObjectURL(u);
-  };
-  if (typeof window !== 'undefined') window.exportTranscript = exportTranscript;
-
   // Practice what needs it: drill the fault types that need practice, steering
   // the auto-generator at the member's rusty faults, and roll a fresh rep. The
   // focus persists across Next rep until they pick another level or change
@@ -5271,7 +5183,7 @@ function App() {
         onSelectDifficulty={(TIER === 'member' && !repShareFree) ? selectDifficulty : null}
         onPracticeFaults={(TIER === 'member' && !repShareFree) ? practiceAtFaults : null} onPracticeLive={null}
         startOpen={!shouldWalk && !SCENARIO_PARAM && !REP_PARAM && !BAND_PARAM && !tourOpen}
-        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay} onByo={() => setByoOpen(true)} onTranscript={() => setTranscriptOpen(true)} onVenuePacks={() => setVenuePacksOpen(true)} onCommunity={() => setCommunityOpen(true)} onDrillWeak={practiceWhatNeedsIt}
+        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom}
       />
 
       <IoListPanel open={ioListOpen} onClose={() => setIoListOpen(false)} state={state}/>
@@ -5637,81 +5549,6 @@ function App() {
           </div>
         </div>
       )}
-      {venuePacksOpen && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 460, width: '90%' }}>
-            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Real-venue scenario packs</div>
-            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Curated scenarios from real house rigs, festival stages, and corporate AV setups.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-              {['Festival main stage', 'Corporate AV keynote', 'Small club house rig'].map((name) => (
-                <button key={name} onClick={() => { const idx = SCENARIOS.findIndex((s) => s.isTheGig); if (idx >= 0) loadLevel(idx); setVenuePacksOpen(false); }} style={{ padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}>{name}</button>
-              ))}
-            </div>
-            <button onClick={() => setVenuePacksOpen(false)} style={{ width: '100%', padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
-          </div>
-        </div>
-      )}
-      {communityOpen && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 460, width: '90%' }}>
-            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Community scenario library</div>
-            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Shared, rated, forkable scenarios from working techs. (Coming soon - needs quality standards + importer-fed content first.)</div>
-            <button onClick={() => setCommunityOpen(false)} style={{ width: '100%', padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
-          </div>
-        </div>
-      )}
-      {survivedFlash && (
-        <div style={{
-          position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 120, pointerEvents: 'none',
-          background: 'rgba(20,60,30,0.92)', color: '#4ade80',
-          border: '1.5px solid #4ade80', boxShadow: '0 0 24px rgba(74,222,128,0.45)',
-          padding: '10px 18px', borderRadius: 8,
-          display: 'flex', alignItems: 'center', gap: 8,
-          animation: 'phantomPopText 2.4s ease-out forwards',
-        }}>
-          <span className="display" style={{ fontSize: 16, fontWeight: 800 }}>SHOW SURVIVED</span>
-          <span className="mono" style={{ fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', opacity: 0.9 }}>first win — milestone logged</span>
-        </div>
-      )}
-      {showDayResult && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 420, width: '90%' }}>
-            <div className="display" style={{ fontSize: 20, fontWeight: 800, color: showDayResult.outcome === 'survived' ? 'var(--green)' : 'var(--amber)', marginBottom: 8 }}>{showDayResult.outcome === 'survived' ? 'SHOW SURVIVED' : 'SHOW SURVIVED (DEGRADED)'}</div>
-            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Outcome: {showDayResult.outcome}. Post-mortem: the show held, but clipping/distortion was present during the run.</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowDayResult(null)} style={{ flex: 1, padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
-              <button onClick={() => { const t = 'Show Day ' + showDayResult.date + '\nOutcome: ' + showDayResult.outcome + '\nLevel: ' + (level && level.title) + '\n'; const b = new Blob([t], { type: 'text/plain' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'show-day-postmortem.txt'; a.click(); URL.revokeObjectURL(u); }} style={{ flex: 1, padding: '8px 12px', background: 'var(--accent)', border: 'none', color: '#0a0a0c', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Export post-mortem</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {byoOpen && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 460, width: '90%' }}>
-            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Bring your own problem</div>
-            <textarea value={byoText} onChange={(e) => setByoText(e.target.value)} placeholder="Describe the symptom, the rig, what you tried..." style={{ width: '100%', height: 90, background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, padding: 8, fontSize: 13, marginBottom: 8 }} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setByoOpen(false)} style={{ flex: 1, padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
-              <button onClick={() => { const words = byoText.toLowerCase().split(/\s+/); const idx = SCENARIOS.findIndex((s) => words.some((w) => (s.title || '').toLowerCase().includes(w))); const pick = idx >= 0 ? idx : Math.floor(Math.random() * SCENARIOS.length); setByoMatch(SCENARIOS[pick] && SCENARIOS[pick].title); loadLevel(pick); try { track('byo_problem', { matched: SCENARIOS[pick] && SCENARIOS[pick].id }); } catch (e) {} setByoOpen(false); }} style={{ flex: 1, padding: '8px 12px', background: 'var(--accent)', border: 'none', color: '#0a0a0c', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Generate scenario</button>
-            </div>
-            {byoMatch && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-3)' }}>Matched: {byoMatch}</div>}
-          </div>
-        </div>
-      )}
-      {transcriptOpen && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12, padding: 22, maxWidth: 420, width: '90%' }}>
-            <div className="display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Competency transcript</div>
-            <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>Exports a dated, skill-tagged record of your solved reps and mastery ledger. Share it with a production manager or attach to a resume.</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setTranscriptOpen(false)} style={{ flex: 1, padding: '8px 12px', background: 'var(--panel-2)', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 6, cursor: 'pointer' }}>Close</button>
-              <button onClick={() => { exportTranscript(); setTranscriptOpen(false); }} style={{ flex: 1, padding: '8px 12px', background: 'var(--accent)', border: 'none', color: '#0a0a0c', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Export</button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
    </window.DefHoverContext.Provider>
   );
@@ -5948,8 +5785,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
   );
 }
 
-function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay, onByo, onTranscript, onVenuePacks, onCommunity, onDrillWeak }) {
-  const [moreOpen, setMoreOpen] = uS(false);
+function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset }) {
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once
@@ -6092,21 +5928,6 @@ function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onR
           fontWeight: 700, padding: '6px 12px',
           animation: nudgeSound ? 'soundNudge 1.6s ease-in-out infinite' : 'none',
         }}>{audioOn ? 'SOUND ON' : 'SOUND OFF'}</button>
-         {(onShowDay || onByo || onTranscript || onVenuePacks || onCommunity || onDrillWeak) && (
-           <div style={{ position: 'relative', display: 'inline-block' }}>
-             <button onClick={() => setMoreOpen((v) => !v)} className="mono ui-no-select" title="More tools" style={{ ...navBtn, padding: '6px 12px' }}>MORE {moreOpen ? '\u25b2' : '\u25bc'}</button>
-             {moreOpen && (
-               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: 6, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 200, minWidth: 160 }}>
-                 {onShowDay && <button onClick={() => { setMoreOpen(false); onShowDay(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>SHOW DAY</button>}
-                 {onByo && <button onClick={() => { setMoreOpen(false); onByo(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>BYO</button>}
-                 {onTranscript && <button onClick={() => { setMoreOpen(false); onTranscript(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>TRANSCRIPT</button>}
-                 {onVenuePacks && <button onClick={() => { setMoreOpen(false); onVenuePacks(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>VENUE PACKS</button>}
-                 {onCommunity && <button onClick={() => { setMoreOpen(false); onCommunity(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>COMMUNITY</button>}
-                 {onDrillWeak && <button onClick={() => { setMoreOpen(false); onDrillWeak(); }} style={{ ...navBtn, padding: '6px 10px', textAlign: 'left' }}>DRILL WEAK</button>}
-               </div>
-             )}
-           </div>
-         )}
         {onToggleEq && (
           <button onClick={onToggleEq} className="mono ui-no-select" title="Graphic EQ on the monitor sends" style={{
             ...navBtn, padding: '6px 12px',
@@ -6123,8 +5944,8 @@ function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onR
         {onOpenIoList && (
           <button data-walk="iolist" onClick={onOpenIoList} className="mono ui-no-select" title="The input list: what's plugged into each channel, and where the outputs go" style={{ ...navBtn, padding: '6px 12px' }}>INPUT LIST</button>
         )}
-         {onToggleStage && (
-           <button onClick={onToggleStage} data-walk="stage-toggle" className="mono ui-no-select" title={big16 ? (stage16Open ? 'Back to the mixer' : 'Open the stage: sub-snakes, inputs, and the signal path') : (stageHidden ? 'Show the stage: sources, cables, and speakers' : 'Hide the stage to give the console the whole screen')} style={{ ...navBtn, padding: '6px 12px' }}>{big16 ? (stage16Open ? 'MIXER' : 'STAGE') : (stageHidden ? 'SHOW STAGE' : 'HIDE STAGE')}</button>
+        {onToggleStage && (
+          <button onClick={onToggleStage} data-walk="stage-toggle" className="mono ui-no-select" title={big16 ? (stage16Open ? 'Back to the mixer' : 'Open the stage: sub-snakes, inputs, and the signal path') : (stageHidden ? 'Show the stage: sources, cables, and speakers' : 'Hide the stage to give the console the whole screen')} style={{ ...navBtn, padding: '6px 12px' }}>{big16 ? (stage16Open ? 'MIXER' : 'STAGE') : (stageHidden ? 'SHOW STAGE' : 'HIDE STAGE')}</button>
         )}
         {sizeSelectable && onSetConsoleSize && (
           <div className="mono ui-no-select" title="Mixer size: 8 or 16 channels. 16 opens every input from the same performance." style={{ ...navBtn, padding: 0, display: 'inline-flex', alignItems: 'stretch', overflow: 'hidden' }}>
