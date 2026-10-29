@@ -6107,8 +6107,14 @@ function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onR
         {onOpenIoList && (
           <button data-walk="iolist" onClick={onOpenIoList} className="mono ui-no-select" title="The input list: what's plugged into each channel, and where the outputs go" style={{ ...navBtn, padding: '6px 12px' }}>INPUT LIST</button>
         )}
-        {onToggleStage && (
-          <button onClick={onToggleStage} data-walk="stage-toggle" className="mono ui-no-select" title={big16 ? (stage16Open ? 'Back to the mixer' : 'Open the stage: sub-snakes, inputs, and the signal path') : (stageHidden ? 'Show the stage: sources, cables, and speakers' : 'Hide the stage to give the console the whole screen')} style={{ ...navBtn, padding: '6px 12px' }}>{big16 ? (stage16Open ? 'MIXER' : 'STAGE') : (stageHidden ? 'SHOW STAGE' : 'HIDE STAGE')}</button>
+         {onShowDay && <button onClick={onShowDay} className="mono ui-no-select" title="Run tonight's show" style={{ ...navBtn, padding: '6px 12px', background: 'rgba(255,201,58,0.12)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>SHOW DAY</button>}
+         {onByo && <button onClick={onByo} className="mono ui-no-select" title="Bring your own problem" style={{ ...navBtn, padding: '6px 12px' }}>BYO</button>}
+         {onTranscript && <button onClick={onTranscript} className="mono ui-no-select" title="Export competency transcript" style={{ ...navBtn, padding: '6px 12px' }}>TRANSCRIPT</button>}
+         {onVenuePacks && <button onClick={onVenuePacks} className="mono ui-no-select" title="Real-venue scenario packs" style={{ ...navBtn, padding: '6px 12px' }}>VENUE PACKS</button>}
+         {onCommunity && <button onClick={onCommunity} className="mono ui-no-select" title="Community scenario library" style={{ ...navBtn, padding: '6px 12px' }}>COMMUNITY</button>}
+         {onDrillWeak && <button onClick={onDrillWeak} className="mono ui-no-select" title="Drill your weak fault types" style={{ ...navBtn, padding: '6px 12px' }}>DRILL WEAK</button>}
+         {onToggleStage && (
+           <button onClick={onToggleStage} data-walk="stage-toggle" className="mono ui-no-select" title={big16 ? (stage16Open ? 'Back to the mixer' : 'Open the stage: sub-snakes, inputs, and the signal path') : (stageHidden ? 'Show the stage: sources, cables, and speakers' : 'Hide the stage to give the console the whole screen')} style={{ ...navBtn, padding: '6px 12px' }}>{big16 ? (stage16Open ? 'MIXER' : 'STAGE') : (stageHidden ? 'SHOW STAGE' : 'HIDE STAGE')}</button>
         )}
         {sizeSelectable && onSetConsoleSize && (
           <div className="mono ui-no-select" title="Mixer size: 8 or 16 channels. 16 opens every input from the same performance." style={{ ...navBtn, padding: 0, display: 'inline-flex', alignItems: 'stretch', overflow: 'hidden' }}>
