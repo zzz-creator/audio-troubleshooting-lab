@@ -3346,6 +3346,14 @@ function App() {
       if (!stableRef.current) {
         stableRef.current = setTimeout(() => {
           setSolved(true);
+  try {
+    const sd = JSON.parse(localStorage.getItem(showDayStorageKey) || 'null');
+    if (sd && sd.date === todayStr()) {
+      const outcome = (clipsStable && clipsStable.length) ? 'survived_degraded' : 'survived';
+      track('show_day_result', { date: sd.date, outcome: outcome });
+      try { localStorage.setItem(showDayStorageKey, JSON.stringify({ date: sd.date, started: sd.started, finished: Date.now(), outcome: outcome })); } catch (e) {}
+    }
+  } catch (e) {}
            if (!level.isPractice && !level.isFeedbackMode) { setSurvivedFlash(true); setTimeout(() => setSurvivedFlash(false), 2400); }
           bumpStreak(); // any finished session (lesson, rep, ring-out) counts today
            // Council 2026-10-29 "one thing to do first": audible success cue on
@@ -4675,6 +4683,18 @@ function App() {
     setTrackPick(code && sc ? { id: sc.id, code } : null);
     loadLevel(i);
   };
+  // SHOW DAY (Phase 1b, v1)
+  const todayStr = () => new Date().toISOString().slice(0,10);
+  const showDayStorageKey = 'audiou-lab-showday-v1';
+  const startShowDay = () => {
+    const idx = SCENARIOS.findIndex((s) => s.isTheGig);
+    if (idx < 0) return;
+    try { track('show_day_start', { date: todayStr() }); } catch (e) {}
+    try { localStorage.setItem(showDayStorageKey, JSON.stringify({ date: todayStr(), started: Date.now() })); } catch (e) {}
+    loadLevel(idx);
+  };
+  if (typeof window !== 'undefined') window.startShowDay = startShowDay;
+
   // Practice what needs it: drill the fault types that need practice, steering
   // the auto-generator at the member's rusty faults, and roll a fresh rep. The
   // focus persists across Next rep until they pick another level or change
@@ -5233,7 +5253,7 @@ function App() {
         onSelectDifficulty={(TIER === 'member' && !repShareFree) ? selectDifficulty : null}
         onPracticeFaults={(TIER === 'member' && !repShareFree) ? practiceAtFaults : null} onPracticeLive={null}
         startOpen={!shouldWalk && !SCENARIO_PARAM && !REP_PARAM && !BAND_PARAM && !tourOpen}
-        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom}
+        zoomPct={Math.round(userZoom * 100)} onZoomIn={() => bumpZoom(ZOOM_STEP)} onZoomOut={() => bumpZoom(-ZOOM_STEP)} onZoomReset={resetZoom} onShowDay={startShowDay}
       />
 
       <IoListPanel open={ioListOpen} onClose={() => setIoListOpen(false)} state={state}/>
@@ -5849,7 +5869,7 @@ function ModePicker({ onClose, level, levelIdx, completed, practicePanel, feedba
   );
 }
 
-function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset }) {
+function TopBar({ level, levelIdx, totalLevels, solved, audioOn, setAudioOn, onRestart, onPrev, onNext, onPick, trackPick, completed, eqOpen, onToggleEq, eqRinging, onOpenProgress, onOpenIoList, onOpenCatalog, nudgeSound, practiceFaults, onSetPracticeFaults, feedbackByEar, onSetFeedbackByEar, feedbackFreeLabel, feedbackExhausted, practiceFreeLeft, rank, rankClean, onTrainRank, liveShow, onSetLiveShow, onSelectDifficulty, onPracticeFaults, onPracticeLive, startOpen, streak, stageHidden, onToggleStage, stage16Open, consoleSize, onSetConsoleSize, sizeSelectable, big16, zoomPct, onZoomIn, onZoomOut, onZoomReset, onShowDay }) {
   // The mode menu opens on load (startOpen) so every visit begins with "what do
   // you want to do?" instead of dropping the user onto a board with no context.
   // startOpen is held false while the first-run tour is up, then flips true once
