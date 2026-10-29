@@ -35,6 +35,36 @@ if (typeof window !== 'undefined') {
   window.__funnelDump = function () {
     try { const b = JSON.parse(localStorage.getItem(FUNNEL_KEY)); return Array.isArray(b) ? b : []; } catch (e) { return []; }
   };
+  // Phase 0 metric: Day-7 activation = % of browsers whose first start_here_progress
+  // event is followed (within 7 days) by >=3 distinct Essentials lessons solved.
+  // Show Day completion will be added once Show Day ships (Phase 1b).
+  window.__day7Activation = function () {
+    try {
+      const b = JSON.parse(localStorage.getItem(FUNNEL_KEY));
+      if (!Array.isArray(b)) return { total: 0, activated: 0, rate: 0 };
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      const byFirst = {};
+      for (const ev of b) {
+        if (ev.stage !== 'start_here_progress') continue;
+        if (byFirst[ev.t] == null) byFirst[ev.t] = new Set();
+        byFirst[ev.t].add(ev.id);
+      }
+      const firsts = Object.keys(byFirst).map(Number).sort((a, c) => a - c);
+      let total = 0, activated = 0;
+      for (const first of firsts) {
+        total++;
+        const distinct = new Set();
+        for (const ev of b) {
+          if (ev.stage !== 'start_here_progress') continue;
+          if (ev.t - first > sevenDays) continue;
+          if (ev.t < first) continue;
+          distinct.add(ev.id);
+        }
+        if (distinct.size >= 3) activated++;
+      }
+      return { total, activated, rate: total ? activated / total : 0 };
+    } catch (e) { return { total: 0, activated: 0, rate: 0 }; }
+  };
   window.__funnelClear = function () { try { localStorage.removeItem(FUNNEL_KEY); } catch (e) {} };
 }
 
@@ -3316,6 +3346,7 @@ function App() {
       if (!stableRef.current) {
         stableRef.current = setTimeout(() => {
           setSolved(true);
+           if (!level.isPractice && !level.isFeedbackMode) { setSurvivedFlash(true); setTimeout(() => setSurvivedFlash(false), 2400); }
           bumpStreak(); // any finished session (lesson, rep, ring-out) counts today
            // Council 2026-10-29 "one thing to do first": audible success cue on
            // the first START HERE win so the milestone is felt, not just metered.
@@ -3370,6 +3401,7 @@ function App() {
   // warning chip (in BriefCard) sticks around until the next reset; the
   // flash here just gives an immediate "you broke something" beat.
   const [popFlash, setPopFlash] = uS(false);
+  const [survivedFlash, setSurvivedFlash] = uS(false);
   uE(() => {
     if (!state.phantomPop) return;
     setPopFlash(true);
@@ -5565,6 +5597,20 @@ function App() {
               })()}
             </div>
           </div>
+        </div>
+      )}
+      {survivedFlash && (
+        <div style={{
+          position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 120, pointerEvents: 'none',
+          background: 'rgba(20,60,30,0.92)', color: '#4ade80',
+          border: '1.5px solid #4ade80', boxShadow: '0 0 24px rgba(74,222,128,0.45)',
+          padding: '10px 18px', borderRadius: 8,
+          display: 'flex', alignItems: 'center', gap: 8,
+          animation: 'phantomPopText 2.4s ease-out forwards',
+        }}>
+          <span className="display" style={{ fontSize: 16, fontWeight: 800 }}>SHOW SURVIVED</span>
+          <span className="mono" style={{ fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', opacity: 0.9 }}>first win — milestone logged</span>
         </div>
       )}
     </div>
