@@ -3317,6 +3317,24 @@ function App() {
         stableRef.current = setTimeout(() => {
           setSolved(true);
           bumpStreak(); // any finished session (lesson, rep, ring-out) counts today
+           // Council 2026-10-29 "one thing to do first": audible success cue on
+           // the first START HERE win so the milestone is felt, not just metered.
+           if (audioOn && !level.isPractice && !level.isFeedbackMode) {
+             try {
+               const ctx = ctxRef.current;
+               if (ctx && ctx.state === 'running') {
+                 const t0 = ctx.currentTime;
+                 const o = ctx.createOscillator(); o.type = 'triangle';
+                 o.frequency.setValueAtTime(660, t0);
+                 o.frequency.exponentialRampToValueAtTime(880, t0 + 0.12);
+                 const g = ctx.createGain();
+                 g.gain.setValueAtTime(0.18, t0);
+                 g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
+                 o.connect(g); g.connect(ctx.destination);
+                 o.start(t0); o.stop(t0 + 0.24);
+               }
+             } catch (_) {}
+           }
           setCompleted(c => ({ ...c, [level.id]: true }));
           // Funnel: lessons and gig challenges are Start Here progress;
           // practice and ear-training completions report under their own
